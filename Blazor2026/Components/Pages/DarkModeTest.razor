@@ -1,0 +1,77 @@
+@page "/dark-mode-test"
+@inject IJSRuntime JS
+
+<PageTitle>Dark Mode Test</PageTitle>
+
+<MudContainer>
+    <MudText Typo="Typo.h3" Class="mb-4">Dark Mode Diagnostic Page</MudText>
+    
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h5">CSS Variable Values</MudText>
+      <MudText>Surface: <span id="surface-value" style="background-color: var(--mud-palette-surface); padding: 0.5rem;">Surface BG</span></MudText>
+        <MudText>Divider: <span id="divider-value" style="border: 2px solid var(--mud-palette-divider); padding: 0.5rem;">Divider Border</span></MudText>
+        <MudText>Background Grey: <span id="bg-grey-value" style="background-color: var(--mud-palette-background-grey); padding: 0.5rem;">BG Grey</span></MudText>
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mb-4">
+        <MudText Typo="Typo.h5">Computed Values</MudText>
+        <MudText>Surface Color: @surfaceColor</MudText>
+      <MudText>Divider Color: @dividerColor</MudText>
+        <MudText>Background Grey: @backgroundGrey</MudText>
+    </MudPaper>
+
+    <MudPaper Class="pa-4 mb-4" Style="background-color: var(--mud-palette-surface); border: 1px solid var(--mud-palette-divider);">
+    <MudText>This paper uses CSS variables directly</MudText>
+        <MudText>If this doesn't change with dark mode, CSS variables aren't working</MudText>
+    </MudPaper>
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="RefreshValues">
+        Refresh Computed Values
+    </MudButton>
+
+    <div class="zoom-control-header mt-4" style="padding: 1rem;">
+ <MudText>Test Header Element (should match header styling)</MudText>
+    </div>
+</MudContainer>
+
+@code {
+    private string surfaceColor = "Loading...";
+    private string dividerColor = "Loading...";
+    private string backgroundGrey = "Loading...";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+  if (firstRender)
+        {
+     await RefreshValues();
+      }
+    }
+
+    private async Task RefreshValues()
+    {
+   try
+        {
+      surfaceColor = await JS.InvokeAsync<string>("eval", 
+"getComputedStyle(document.documentElement).getPropertyValue('--mud-palette-surface')");
+     
+          dividerColor = await JS.InvokeAsync<string>("eval",
+          "getComputedStyle(document.documentElement).getPropertyValue('--mud-palette-divider')");
+            
+    backgroundGrey = await JS.InvokeAsync<string>("eval",
+   "getComputedStyle(document.documentElement).getPropertyValue('--mud-palette-background-grey')");
+
+            if (string.IsNullOrWhiteSpace(surfaceColor))
+      surfaceColor = "Variable not found!";
+            if (string.IsNullOrWhiteSpace(dividerColor))
+     dividerColor = "Variable not found!";
+   if (string.IsNullOrWhiteSpace(backgroundGrey))
+          backgroundGrey = "Variable not found!";
+
+        StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+         surfaceColor = $"Error: {ex.Message}";
+        }
+    }
+}

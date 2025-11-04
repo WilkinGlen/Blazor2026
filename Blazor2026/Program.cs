@@ -11,6 +11,9 @@ builder.Services.AddRazorComponents()
 // Register ZoomService as a singleton to maintain state across the application
 builder.Services.AddSingleton<ZoomService>();
 
+// Register ThemeService as a singleton to maintain dark mode state
+builder.Services.AddSingleton<ThemeService>();
+
 // Add MudBlazor services
 builder.Services.AddMudServices();
 

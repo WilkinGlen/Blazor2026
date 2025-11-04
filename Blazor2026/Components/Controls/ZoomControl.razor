@@ -1,6 +1,6 @@
 @using Blazor2026.Services
 
-<div class="zoom-control">
+<div class="zoom-control" style="background-color: @GetBackgroundColor(); transition: background-color 0.3s ease;">
     <MudIconButton Icon="@Icons.Material.Filled.Remove"
                    Color="Color.Primary"
                    Size="Size.Small"
@@ -14,10 +14,10 @@
                ValueChanged="@OnSliderChange"
                Color="Color.Primary"
                Class="zoom-slider" />
-    @{
-        var zoomText = ZoomService.GetZoomPercentage().ToString() + "%";
-    }
-    <MudText>@zoomText</MudText>
+
+    <MudChip T="string" Size="Size.Small" Variant="Variant.Text">
+        @ZoomService.GetZoomPercentage()%
+    </MudChip>
 
     <MudIconButton Icon="@Icons.Material.Filled.Add"
                    Color="Color.Primary"
