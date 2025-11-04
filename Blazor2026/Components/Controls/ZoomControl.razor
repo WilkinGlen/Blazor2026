@@ -1,0 +1,24 @@
+@using Blazor2026.Services
+
+<div class="zoom-control">
+    <button class="zoom-btn" @onclick="ZoomService.ZoomOut" title="Zoom Out (Ctrl + -)">
+        <span class="zoom-icon">−</span>
+    </button>
+    
+    <input type="range" 
+ class="zoom-slider"
+           min="@ZoomService.MinimumZoom"
+           max="@ZoomService.MaximumZoom"
+step="0.1"
+           value="@ZoomService.ZoomLevel"
+           @oninput="OnSliderChange"
+           title="Adjust Zoom" />
+    
+    <span class="zoom-percentage" @onclick="ZoomService.ResetZoom" title="Reset Zoom (Click or Ctrl + 0)">
+        @ZoomService.GetZoomPercentage()%
+    </span>
+    
+    <button class="zoom-btn" @onclick="ZoomService.ZoomIn" title="Zoom In (Ctrl + +)">
+      <span class="zoom-icon">+</span>
+    </button>
+</div>

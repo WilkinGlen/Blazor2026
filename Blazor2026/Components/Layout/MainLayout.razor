@@ -1,0 +1,19 @@
+@inherits LayoutComponentBase
+
+<div class="page-layout">
+    <header class="zoom-control-header">
+        <ZoomControl />
+    </header>
+    
+    <main class="page-content">
+        <ZoomContainer>
+            @Body
+        </ZoomContainer>
+    </main>
+</div>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>

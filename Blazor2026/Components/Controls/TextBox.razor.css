@@ -1,0 +1,64 @@
+﻿/* Base styles for all textboxes */
+input[type="text"] {
+    padding: 8px;
+    font-size: 1rem;
+    transition: all 0.2s ease-in-out;
+  box-sizing: border-box;
+}
+
+/* Default style */
+.textbox-default {
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* Raised style */
+.textbox-raised {
+    border: 2px solid #e0e0e0;
+    border-radius: 4px;
+    box-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.textbox-raised:focus {
+    outline: none;
+    border-color: #a0a0a0;
+    box-shadow: 3px 3px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* Flat style */
+.textbox-flat {
+    border: 1px solid #e0e0e0;
+    border-radius: 0;
+    background-color: #f5f5f5;
+}
+
+.textbox-flat:focus {
+    outline: none;
+    background-color: #ffffff;
+    border-color: #a0a0a0;
+}
+
+/* Underlined style */
+.textbox-underlined {
+    border: none;
+    border-bottom: 2px solid #e0e0e0;
+    border-radius: 0;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.textbox-underlined:focus {
+    outline: none;
+    border-bottom-color: #a0a0a0;
+}
+
+/* No border style */
+.textbox-no-border {
+    border: none;
+    background-color: #f8f8f8;
+}
+
+.textbox-no-border:focus {
+    outline: none;
+    background-color: #f0f0f0;
+}

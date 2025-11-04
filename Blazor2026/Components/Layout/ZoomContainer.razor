@@ -1,0 +1,5 @@
+@using Blazor2026.Services
+
+<div class="zoom-wrapper" style="transform: scale(@ZoomService.ZoomLevel); transform-origin: top left; width: @(100 / ZoomService.ZoomLevel)%; height: @(100 / ZoomService.ZoomLevel)%;">
+    @ChildContent
+</div>

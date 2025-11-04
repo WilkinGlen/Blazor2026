@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="Blazor2026.Tests/Blazor2026.Tests.csproj" />
+  <Project Path="Blazor2026/Blazor2026.csproj" />
+</Solution>

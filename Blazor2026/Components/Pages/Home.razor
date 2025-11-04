@@ -1,0 +1,37 @@
+@page "/"
+
+<PageTitle>Home</PageTitle>
+
+<h3>TextBox Examples</h3>
+
+<h4>Normal TextBoxes</h4>
+<TextBox Text="Hello Glen" TextChanged="@this.HandleTextChanged" TextChangedDelayMilliseconds="500" Width="25" />
+<br />
+<br />
+<TextBox Text="Hello Glen" TextChanged="@this.HandleTextChanged" Width="50" BorderStyle="TextBoxBorderStyle.Raised" />
+<br />
+<br />
+<TextBox Text="Hello Glen" TextChanged="@this.HandleTextChanged" Width="75" BorderStyle="TextBoxBorderStyle.Underlined" />
+<br />
+<br />
+<TextBox Text="Hello Glen" PasswordChar="@PasswordChar" TextChanged="@this.HandleTextChanged" BorderStyle="TextBoxBorderStyle.Flat"/>
+<br />
+<br />
+
+<h4>Disabled TextBox</h4>
+<TextBox Text="This textbox is disabled" Disabled="true" Width="50" BorderStyle="TextBoxBorderStyle.Default" />
+<br />
+<br />
+
+<h4>Toggle Disabled State</h4>
+<button @onclick="ToggleDisabled">@(isDisabled ? "Enable" : "Disable") TextBox</button>
+<br />
+<br />
+<TextBox Text="Click button to toggle" Disabled="@isDisabled" Width="50" TextChanged="@this.HandleTextChanged" />
+<br />
+<br />
+
+@if (!string.IsNullOrEmpty(lastChangedText))
+{
+    <p><strong>Last Changed Text:</strong> @lastChangedText</p>
+}

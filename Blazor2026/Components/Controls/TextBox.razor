@@ -1,0 +1,7 @@
+﻿<input @ref="inputElement"
+	   type="@GetInputType()"
+	   value="@_internalValue"
+	   @oninput="OnInputAsync"
+       disabled="@Disabled"
+	   style="@GetComputedStyle()"
+	   class="@GetBorderClass()" />
