@@ -1,5 +1,6 @@
 using Blazor2026.Components;
 using Blazor2026.Services;
+using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,6 +10,9 @@ builder.Services.AddRazorComponents()
 
 // Register ZoomService as a singleton to maintain state across the application
 builder.Services.AddSingleton<ZoomService>();
+
+// Add MudBlazor services
+builder.Services.AddMudServices();
 
 var app = builder.Build();
 

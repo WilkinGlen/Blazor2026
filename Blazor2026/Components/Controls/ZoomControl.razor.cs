@@ -13,12 +13,9 @@ public partial class ZoomControl : IDisposable
         this.ZoomService.OnZoomChanged += this.StateHasChanged;
     }
 
-    private void OnSliderChange(ChangeEventArgs e)
+    private void OnSliderChange(double value)
     {
-        if (double.TryParse(e.Value?.ToString(), out var value))
-        {
-            this.ZoomService.SetZoom(value);
-        }
+        this.ZoomService.SetZoom(value);
     }
 
     public void Dispose()
