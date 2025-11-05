@@ -13,3 +13,13 @@
     width: 8rem;
     margin: 0;
 }
+
+/* Make slider white/light in dark mode */
+::deep .zoom-slider .mud-slider-track,
+::deep .zoom-slider .mud-slider-thumb {
+    background-color: white !important;
+}
+
+::deep .zoom-slider .mud-slider-track::before {
+    background-color: rgba(255, 255, 255, 0.3) !important;
+}
