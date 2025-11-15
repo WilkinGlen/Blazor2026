@@ -8,18 +8,19 @@ public class ZoomService
 
     public event Action? OnZoomChanged;
 
+    private double _zoomLevel = 1.0;
     public double ZoomLevel
     {
-        get;
+        get => this._zoomLevel;
         private set
         {
-            if (field != value)
+            if (this._zoomLevel != value)
             {
-                field = value;
+                this._zoomLevel = value;
                 OnZoomChanged?.Invoke();
             }
         }
-    } = 1.0;
+    }
 
     public double MinimumZoom => MinZoom;
     public double MaximumZoom => MaxZoom;

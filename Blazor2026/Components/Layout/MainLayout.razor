@@ -1,19 +1,17 @@
 @inherits LayoutComponentBase
 
-<MudThemeProvider @bind-IsDarkMode="@IsDarkMode" />
+<MudThemeProvider />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
 <div class="page-layout">
-    <header class="zoom-control-header" 
-            style="background-color: @(IsDarkMode ? "#1e1e1e" : "#ffffff"); border-bottom: 1px solid @(IsDarkMode ? "#4a4a4a" : "#e0e0e0");">
+    <header class="zoom-control-header">
         <div class="header-content">
             <ZoomControl />
-            <MudTooltip Text="@(IsDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode")">
-                <MudIconButton Icon="@(IsDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" 
-                    Color="Color.Primary"
-                    OnClick="@ToggleDarkMode" />
+            <MudTooltip Text="">
+                <MudIconButton Icon="@Icons.Material.Filled.LightMode" 
+                    Color="Color.Primary" />
             </MudTooltip>
         </div>
     </header>

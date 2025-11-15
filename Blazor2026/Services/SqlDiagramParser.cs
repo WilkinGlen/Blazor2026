@@ -29,16 +29,15 @@ public static partial class SqlDiagramParser
 
         try
         {
-            // Parse FROM clause
             var fromMatch = FromTableRegex().Match(sql);
             if (fromMatch.Success)
             {
                 var tableName = fromMatch.Groups[1].Value;
                 var alias = fromMatch.Groups[2].Success ? fromMatch.Groups[2].Value : tableName;
-                
-                data.Tables.Add(new TableInfo 
-                { 
-                    Name = tableName, 
+
+                data.Tables.Add(new TableInfo
+                {
+                    Name = tableName,
                     Alias = alias,
                     X = 50,
                     Y = 50
@@ -46,10 +45,9 @@ public static partial class SqlDiagramParser
                 tableAliasMap[alias] = tableName;
             }
 
-            // Parse JOINs
             var joinMatches = JoinRegex().Matches(sql);
             var yOffset = 50;
-            
+
             foreach (Match joinMatch in joinMatches)
             {
                 var joinType = joinMatch.Groups[1].Success ? joinMatch.Groups[1].Value : "INNER";
@@ -60,21 +58,19 @@ public static partial class SqlDiagramParser
                 var rightTableAlias = joinMatch.Groups[6].Value;
                 var rightColumn = joinMatch.Groups[7].Value;
 
-                // Add table if not already present
                 if (!data.Tables.Any(t => t.Alias.Equals(alias, StringComparison.OrdinalIgnoreCase)))
                 {
                     yOffset += 200;
-                    data.Tables.Add(new TableInfo 
-                    { 
-                        Name = tableName, 
+                    data.Tables.Add(new TableInfo
+                    {
+                        Name = tableName,
                         Alias = alias,
-                        X = 50 + (data.Tables.Count % 3) * 300,
+                        X = 50 + data.Tables.Count % 3 * 300,
                         Y = yOffset
                     });
                     tableAliasMap[alias] = tableName;
                 }
 
-                // Add join relationship
                 data.Joins.Add(new JoinRelationship
                 {
                     FromTable = leftTableAlias,
@@ -85,41 +81,35 @@ public static partial class SqlDiagramParser
                 });
             }
 
-            // Parse SELECT columns to populate table columns
             var selectMatch = SelectColumnsRegex().Match(sql);
             if (selectMatch.Success)
             {
                 var columnsText = selectMatch.Groups[1].Value;
-                
-                // Extract all qualified columns (table.column)
                 var qualifiedMatches = QualifiedColumnRegex().Matches(columnsText);
-
                 foreach (Match colMatch in qualifiedMatches)
                 {
                     var tableAlias = colMatch.Groups[1].Value;
                     var columnName = colMatch.Groups[2].Value;
-
-                    var table = data.Tables.FirstOrDefault(t => 
+                    var table = data.Tables.FirstOrDefault(t =>
                         t.Alias.Equals(tableAlias, StringComparison.OrdinalIgnoreCase));
-                    
+
                     if (table != null)
                     {
                         if (!table.Columns.Contains(columnName, StringComparer.OrdinalIgnoreCase))
                         {
                             table.Columns.Add(columnName);
                         }
-                        // Track that this column was in the SELECT clause
-                        table.SelectedColumns.Add(columnName);
+
+                        _ = table.SelectedColumns.Add(columnName);
                     }
                 }
             }
 
-            // Add join columns to their respective tables (if not already present)
             foreach (var join in data.Joins)
             {
-                var fromTable = data.Tables.FirstOrDefault(t => 
+                var fromTable = data.Tables.FirstOrDefault(t =>
                     t.Alias.Equals(join.FromTable, StringComparison.OrdinalIgnoreCase));
-                var toTable = data.Tables.FirstOrDefault(t => 
+                var toTable = data.Tables.FirstOrDefault(t =>
                     t.Alias.Equals(join.ToTable, StringComparison.OrdinalIgnoreCase));
 
                 if (fromTable != null && !fromTable.Columns.Contains(join.FromColumn, StringComparer.OrdinalIgnoreCase))
@@ -133,7 +123,6 @@ public static partial class SqlDiagramParser
                 }
             }
 
-            // If any table has no columns, add a placeholder primary key column
             foreach (var table in data.Tables.Where(t => t.Columns.Count == 0))
             {
                 table.Columns.Add($"{table.Name}Id");
@@ -141,7 +130,6 @@ public static partial class SqlDiagramParser
         }
         catch
         {
-            // Return empty data on parse error
             return new SqlDiagramData();
         }
 

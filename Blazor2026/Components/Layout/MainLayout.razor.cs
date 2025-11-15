@@ -8,20 +8,9 @@ public partial class MainLayout : IDisposable
     [Inject]
     public required ThemeService ThemeService { get; set; }
 
-    private bool IsDarkMode
-    {
-        get => this.ThemeService.IsDarkMode;
-        set => this.ThemeService.IsDarkMode = value;
-    }
-
     protected override void OnInitialized()
     {
         this.ThemeService.OnThemeChanged += this.StateHasChanged;
-    }
-
-    private void ToggleDarkMode()
-    {
-        this.IsDarkMode = !this.IsDarkMode;
     }
 
     public void Dispose()

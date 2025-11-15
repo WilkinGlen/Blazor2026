@@ -4,7 +4,7 @@ public class TableInfo
 {
     public string Name { get; set; } = string.Empty;
     public string Alias { get; set; } = string.Empty;
-    public List<string> Columns { get; set; } = new();
+    public List<string> Columns { get; set; } = [];
     public HashSet<string> SelectedColumns { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public double X { get; set; }
     public double Y { get; set; }
@@ -21,6 +21,6 @@ public class JoinRelationship
 
 public class SqlDiagramData
 {
-    public List<TableInfo> Tables { get; set; } = new();
-    public List<JoinRelationship> Joins { get; set; } = new();
+    public List<TableInfo> Tables { get; set; } = [];
+    public List<JoinRelationship> Joins { get; set; } = [];
 }

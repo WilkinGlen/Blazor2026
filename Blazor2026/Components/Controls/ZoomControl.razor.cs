@@ -22,11 +22,6 @@ public partial class ZoomControl : IDisposable
         this.ZoomService.SetZoom(value);
     }
 
-    private string GetBackgroundColor()
-    {
-        return this.ThemeService.IsDarkMode ? "#2a2a2a" : "#f5f5f5";
-    }
-
     public void Dispose()
     {
         this.ZoomService.OnZoomChanged -= this.StateHasChanged;
