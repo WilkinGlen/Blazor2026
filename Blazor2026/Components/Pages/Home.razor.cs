@@ -4,14 +4,12 @@ using Blazor2026.Services;
 
 public partial class Home
 {
-    private string? originalSql;
-
     private string? OriginalSql
     {
-        get => this.originalSql;
+        get;
         set
         {
-            this.originalSql = value;
+            field = value;
             this.FormatSql();
         }
     }

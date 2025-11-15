@@ -23,3 +23,22 @@
 ::deep .zoom-slider .mud-slider-track::before {
     background-color: rgba(255, 255, 255, 0.3) !important;
 }
+
+/* Control thumb size explicitly */
+::deep .zoom-slider .mud-slider-thumb {
+    width: 2px !important;
+    height: 2px !important;
+}
+
+/* Control native range input thumb size */
+::deep .zoom-slider input[type="range"]::-webkit-slider-thumb {
+    width: 2px !important;
+    height: 2px !important;
+    background-color: white !important;
+}
+
+::deep .zoom-slider input[type="range"]::-moz-range-thumb {
+    width: 2px !important;
+    height: 2px !important;
+    background-color: white !important;
+}

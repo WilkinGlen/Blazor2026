@@ -2,18 +2,16 @@ namespace Blazor2026.Services;
 
 public class ThemeService
 {
-    private bool _isDarkMode;
-
     public event Action? OnThemeChanged;
 
     public bool IsDarkMode
     {
-        get => this._isDarkMode;
+        get;
         set
         {
-            if (this._isDarkMode != value)
+            if (field != value)
             {
-                this._isDarkMode = value;
+                field = value;
                 this.OnThemeChanged?.Invoke();
             }
         }

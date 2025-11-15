@@ -2,7 +2,6 @@ namespace Blazor2026.Services;
 
 public class ZoomService
 {
-    private double zoomLevel = 1.0;
     private const double ZoomStep = 0.1;
     private const double MinZoom = 0.5;
     private const double MaxZoom = 1.5;
@@ -11,33 +10,33 @@ public class ZoomService
 
     public double ZoomLevel
     {
-        get => this.zoomLevel;
+        get;
         private set
         {
-            if (this.zoomLevel != value)
+            if (field != value)
             {
-                this.zoomLevel = value;
+                field = value;
                 OnZoomChanged?.Invoke();
             }
         }
-    }
+    } = 1.0;
 
     public double MinimumZoom => MinZoom;
     public double MaximumZoom => MaxZoom;
 
     public void ZoomIn()
     {
-        if (this.zoomLevel < MaxZoom)
+        if (this.ZoomLevel < MaxZoom)
         {
-            this.ZoomLevel = Math.Min(this.zoomLevel + ZoomStep, MaxZoom);
+            this.ZoomLevel = Math.Min(this.ZoomLevel + ZoomStep, MaxZoom);
         }
     }
 
     public void ZoomOut()
     {
-        if (this.zoomLevel > MinZoom)
+        if (this.ZoomLevel > MinZoom)
         {
-            this.ZoomLevel = Math.Max(this.zoomLevel - ZoomStep, MinZoom);
+            this.ZoomLevel = Math.Max(this.ZoomLevel - ZoomStep, MinZoom);
         }
     }
 
@@ -53,6 +52,6 @@ public class ZoomService
 
     public int GetZoomPercentage()
     {
-        return (int)Math.Round(this.zoomLevel * 100);
+        return (int)Math.Round(this.ZoomLevel * 100);
     }
 }
