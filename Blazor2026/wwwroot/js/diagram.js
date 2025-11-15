@@ -1,0 +1,313 @@
+export function initializeDraggable(dotNetHelper) {
+    const container = document.querySelector('.diagram-container');
+    if (!container) return;
+
+    let activeElement = null;
+    let offsetX = 0;
+    let offsetY = 0;
+
+    container.addEventListener('mousedown', dragStart, false);
+    container.addEventListener('mouseup', dragEnd, false);
+    container.addEventListener('mousemove', drag, false);
+    container.addEventListener('touchstart', dragStart, false);
+    container.addEventListener('touchend', dragEnd, false);
+    container.addEventListener('touchmove', drag, false);
+
+    function dragStart(e) {
+        const target = e.target.closest('.table-box');
+        if (!target) return;
+
+        activeElement = target;
+        
+        // Get the bounding rectangles
+        const targetRect = target.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+
+        if (e.type === 'touchstart') {
+            const touch = e.touches[0];
+            // Calculate offset from top-left of the table box to the click point
+            offsetX = touch.clientX - targetRect.left;
+            offsetY = touch.clientY - targetRect.top;
+        } else {
+            // Calculate offset from top-left of the table box to the click point
+            offsetX = e.clientX - targetRect.left;
+            offsetY = e.clientY - targetRect.top;
+        }
+
+        target.style.cursor = 'grabbing';
+        e.preventDefault();
+    }
+
+    function dragEnd(e) {
+        if (!activeElement) return;
+
+        const target = activeElement;
+        const tableId = target.getAttribute('data-table-id');
+        
+        target.style.cursor = 'grab';
+
+        // Get final position
+        const finalX = parseInt(target.style.left) || 0;
+        const finalY = parseInt(target.style.top) || 0;
+
+        // Notify Blazor of the new position
+        if (dotNetHelper && tableId) {
+            dotNetHelper.invokeMethodAsync('UpdateTablePosition', tableId, finalX, finalY);
+        }
+
+        activeElement = null;
+    }
+
+    function drag(e) {
+        if (!activeElement) return;
+
+        e.preventDefault();
+
+        let clientX, clientY;
+        
+        if (e.type === 'touchmove') {
+            const touch = e.touches[0];
+            clientX = touch.clientX;
+            clientY = touch.clientY;
+        } else {
+            clientX = e.clientX;
+            clientY = e.clientY;
+        }
+
+        // Calculate new position: mouse position - container position - click offset
+        const containerRect = container.getBoundingClientRect();
+        const newX = clientX - containerRect.left - offsetX;
+        const newY = clientY - containerRect.top - offsetY;
+
+        // Apply position
+        activeElement.style.left = newX + 'px';
+        activeElement.style.top = newY + 'px';
+
+        // Update connected lines in real-time
+        updateConnectedLines(activeElement);
+    }
+
+    function getEdgePoint(boxX, boxY, boxWidth, boxHeight, centerX, centerY, targetX, targetY) {
+        // Calculate direction from center to target
+        let dx = targetX - centerX;
+        let dy = targetY - centerY;
+        
+        // Normalize
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance === 0) {
+            return { x: centerX, y: centerY };
+        }
+        
+        dx /= distance;
+        dy /= distance;
+        
+        // Calculate intersection with box edges
+        const halfWidth = boxWidth / 2;
+        const halfHeight = boxHeight / 2;
+        
+        // Add small margin to prevent lines from touching the border
+        const margin = 2;
+        
+        // Calculate potential intersection points for all four edges
+        let x, y;
+        
+        // Calculate where the ray intersects each edge
+        const tRight = dx !== 0 ? (halfWidth - margin) / dx : Infinity;
+        const tLeft = dx !== 0 ? -(halfWidth - margin) / dx : Infinity;
+        const tBottom = dy !== 0 ? (halfHeight - margin) / dy : Infinity;
+        const tTop = dy !== 0 ? -(halfHeight - margin) / dy : Infinity;
+        
+        // Find the smallest positive t value (closest intersection in the direction we're going)
+        let t = Infinity;
+        
+        if (tRight > 0 && tRight < t && dx > 0) t = tRight;
+        if (tLeft > 0 && tLeft < t && dx < 0) t = tLeft;
+        if (tBottom > 0 && tBottom < t && dy > 0) t = tBottom;
+        if (tTop > 0 && tTop < t && dy < 0) t = tTop;
+        
+        // Calculate the intersection point
+        x = centerX + t * dx;
+        y = centerY + t * dy;
+        
+        // Clamp to ensure we stay within box bounds
+        x = Math.max(boxX + margin, Math.min(boxX + boxWidth - margin, x));
+        y = Math.max(boxY + margin, Math.min(boxY + boxHeight - margin, y));
+        
+        return { x, y };
+    }
+
+    function getTableDimensions(tableElement) {
+        const rect = tableElement.getBoundingClientRect();
+        return {
+            width: rect.width,
+            height: rect.height
+        };
+    }
+
+    function updateConnectedLines(tableElement) {
+        const tableId = tableElement.getAttribute('data-table-id');
+        if (!tableId) return;
+
+        // Find all lines connected to this table
+        const svg = container.querySelector('svg');
+        if (!svg) return;
+
+        const lines = svg.querySelectorAll('line');
+        lines.forEach(line => {
+            const fromTable = line.getAttribute('data-from-table');
+            const toTable = line.getAttribute('data-to-table');
+
+            if (fromTable === tableId || toTable === tableId) {
+                // Get both table elements
+                const fromTableElement = container.querySelector(`[data-table-id="${fromTable}"]`);
+                const toTableElement = container.querySelector(`[data-table-id="${toTable}"]`);
+                
+                if (!fromTableElement || !toTableElement) return;
+
+                // Get positions and dimensions
+                const fromX = parseInt(fromTableElement.style.left) || 0;
+                const fromY = parseInt(fromTableElement.style.top) || 0;
+                const fromDims = getTableDimensions(fromTableElement);
+                const fromWidth = fromDims.width;
+                const fromHeight = fromDims.height;
+                const fromCenterX = fromX + fromWidth / 2;
+                const fromCenterY = fromY + fromHeight / 2;
+
+                const toX = parseInt(toTableElement.style.left) || 0;
+                const toY = parseInt(toTableElement.style.top) || 0;
+                const toDims = getTableDimensions(toTableElement);
+                const toWidth = toDims.width;
+                const toHeight = toDims.height;
+                const toCenterX = toX + toWidth / 2;
+                const toCenterY = toY + toHeight / 2;
+                
+                // Calculate edge points for both tables
+                const fromEdge = getEdgePoint(fromX, fromY, fromWidth, fromHeight, fromCenterX, fromCenterY, toCenterX, toCenterY);
+                const toEdge = getEdgePoint(toX, toY, toWidth, toHeight, toCenterX, toCenterY, fromCenterX, fromCenterY);
+                
+                line.setAttribute('x1', fromEdge.x);
+                line.setAttribute('y1', fromEdge.y);
+                line.setAttribute('x2', toEdge.x);
+                line.setAttribute('y2', toEdge.y);
+                
+                // Ensure line is visible
+                line.style.opacity = '1';
+            }
+        });
+    }
+
+    return {
+        dispose: () => {
+            container.removeEventListener('mousedown', dragStart);
+            container.removeEventListener('mouseup', dragEnd);
+            container.removeEventListener('mousemove', drag);
+            container.removeEventListener('touchstart', dragStart);
+            container.removeEventListener('touchend', dragEnd);
+            container.removeEventListener('touchmove', drag);
+        }
+    };
+}
+
+export function updateAllLines() {
+    const container = document.querySelector('.diagram-container');
+    if (!container) return;
+
+    const svg = container.querySelector('svg');
+    if (!svg) return;
+
+    function getEdgePoint(boxX, boxY, boxWidth, boxHeight, centerX, centerY, targetX, targetY) {
+        // Calculate direction from center to target
+        let dx = targetX - centerX;
+        let dy = targetY - centerY;
+        
+        // Normalize
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance === 0) {
+            return { x: centerX, y: centerY };
+        }
+        
+        dx /= distance;
+        dy /= distance;
+        
+        // Calculate intersection with box edges
+        const halfWidth = boxWidth / 2;
+        const halfHeight = boxHeight / 2;
+        
+        // Add small margin to prevent lines from touching the border
+        const margin = 2;
+        
+        // Calculate potential intersection points for all four edges
+        let x, y;
+        
+        // Calculate where the ray intersects each edge
+        const tRight = dx !== 0 ? (halfWidth - margin) / dx : Infinity;
+        const tLeft = dx !== 0 ? -(halfWidth - margin) / dx : Infinity;
+        const tBottom = dy !== 0 ? (halfHeight - margin) / dy : Infinity;
+        const tTop = dy !== 0 ? -(halfHeight - margin) / dy : Infinity;
+        
+        // Find the smallest positive t value (closest intersection in the direction we're going)
+        let t = Infinity;
+        
+        if (tRight > 0 && tRight < t && dx > 0) t = tRight;
+        if (tLeft > 0 && tLeft < t && dx < 0) t = tLeft;
+        if (tBottom > 0 && tBottom < t && dy > 0) t = tBottom;
+        if (tTop > 0 && tTop < t && dy < 0) t = tTop;
+        
+        // Calculate the intersection point
+        x = centerX + t * dx;
+        y = centerY + t * dy;
+        
+        // Clamp to ensure we stay within box bounds
+        x = Math.max(boxX + margin, Math.min(boxX + boxWidth - margin, x));
+        y = Math.max(boxY + margin, Math.min(boxY + boxHeight - margin, y));
+        
+        return { x, y };
+    }
+
+    function getTableDimensions(tableElement) {
+        const rect = tableElement.getBoundingClientRect();
+        return {
+            width: rect.width,
+            height: rect.height
+        };
+    }
+
+    const lines = svg.querySelectorAll('line');
+    lines.forEach(line => {
+        const fromTable = line.getAttribute('data-from-table');
+        const toTable = line.getAttribute('data-to-table');
+        
+        const fromTableElement = container.querySelector(`[data-table-id="${fromTable}"]`);
+        const toTableElement = container.querySelector(`[data-table-id="${toTable}"]`);
+        
+        if (!fromTableElement || !toTableElement) return;
+
+        const fromX = parseInt(fromTableElement.style.left) || 0;
+        const fromY = parseInt(fromTableElement.style.top) || 0;
+        const fromDims = getTableDimensions(fromTableElement);
+        const fromWidth = fromDims.width;
+        const fromHeight = fromDims.height;
+        const fromCenterX = fromX + fromWidth / 2;
+        const fromCenterY = fromY + fromHeight / 2;
+
+        const toX = parseInt(toTableElement.style.left) || 0;
+        const toY = parseInt(toTableElement.style.top) || 0;
+        const toDims = getTableDimensions(toTableElement);
+        const toWidth = toDims.width;
+        const toHeight = toDims.height;
+        const toCenterX = toX + toWidth / 2;
+        const toCenterY = toY + toHeight / 2;
+        
+        const fromEdge = getEdgePoint(fromX, fromY, fromWidth, fromHeight, fromCenterX, fromCenterY, toCenterX, toCenterY);
+        const toEdge = getEdgePoint(toX, toY, toWidth, toHeight, toCenterX, toCenterY, fromCenterX, fromCenterY);
+        
+        line.setAttribute('x1', fromEdge.x);
+        line.setAttribute('y1', fromEdge.y);
+        line.setAttribute('x2', toEdge.x);
+        line.setAttribute('y2', toEdge.y);
+        
+        // Add transition and make line visible
+        line.style.transition = 'opacity 0.3s ease';
+        line.style.opacity = '1';
+    });
+}

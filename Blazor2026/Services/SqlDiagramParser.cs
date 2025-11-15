@@ -1,0 +1,150 @@
+namespace Blazor2026.Services;
+
+using System.Text.RegularExpressions;
+using Blazor2026.Models;
+
+public static partial class SqlDiagramParser
+{
+    [GeneratedRegex(@"\bFROM\s+(?:\[?[\w]+\]?\.\[?[\w]+\]?\.)?\[?(\w+)\]?(?:\s+AS\s+(\w+))?", RegexOptions.IgnoreCase)]
+    private static partial Regex FromTableRegex();
+
+    [GeneratedRegex(@"\b(LEFT|RIGHT|INNER|FULL|CROSS)?\s*JOIN\s+(?:\[?[\w]+\]?\.\[?[\w]+\]?\.)?\[?(\w+)\]?(?:\s+AS\s+(\w+))?\s+ON\s+(\w+)\s*\.\s*(\w+)\s*=\s*(\w+)\s*\.\s*(\w+)", RegexOptions.IgnoreCase)]
+    private static partial Regex JoinRegex();
+
+    [GeneratedRegex(@"SELECT\s+(.*?)\s+FROM", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
+    private static partial Regex SelectColumnsRegex();
+
+    [GeneratedRegex(@"(\w+)\s*\.\s*\[?(\w+)\]?", RegexOptions.IgnoreCase)]
+    private static partial Regex QualifiedColumnRegex();
+
+    public static SqlDiagramData ParseSql(string sql)
+    {
+        if (string.IsNullOrWhiteSpace(sql))
+        {
+            return new SqlDiagramData();
+        }
+
+        var data = new SqlDiagramData();
+        var tableAliasMap = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        try
+        {
+            // Parse FROM clause
+            var fromMatch = FromTableRegex().Match(sql);
+            if (fromMatch.Success)
+            {
+                var tableName = fromMatch.Groups[1].Value;
+                var alias = fromMatch.Groups[2].Success ? fromMatch.Groups[2].Value : tableName;
+                
+                data.Tables.Add(new TableInfo 
+                { 
+                    Name = tableName, 
+                    Alias = alias,
+                    X = 50,
+                    Y = 50
+                });
+                tableAliasMap[alias] = tableName;
+            }
+
+            // Parse JOINs
+            var joinMatches = JoinRegex().Matches(sql);
+            var yOffset = 50;
+            
+            foreach (Match joinMatch in joinMatches)
+            {
+                var joinType = joinMatch.Groups[1].Success ? joinMatch.Groups[1].Value : "INNER";
+                var tableName = joinMatch.Groups[2].Value;
+                var alias = joinMatch.Groups[3].Success ? joinMatch.Groups[3].Value : tableName;
+                var leftTableAlias = joinMatch.Groups[4].Value;
+                var leftColumn = joinMatch.Groups[5].Value;
+                var rightTableAlias = joinMatch.Groups[6].Value;
+                var rightColumn = joinMatch.Groups[7].Value;
+
+                // Add table if not already present
+                if (!data.Tables.Any(t => t.Alias.Equals(alias, StringComparison.OrdinalIgnoreCase)))
+                {
+                    yOffset += 200;
+                    data.Tables.Add(new TableInfo 
+                    { 
+                        Name = tableName, 
+                        Alias = alias,
+                        X = 50 + (data.Tables.Count % 3) * 300,
+                        Y = yOffset
+                    });
+                    tableAliasMap[alias] = tableName;
+                }
+
+                // Add join relationship
+                data.Joins.Add(new JoinRelationship
+                {
+                    FromTable = leftTableAlias,
+                    ToTable = rightTableAlias,
+                    FromColumn = leftColumn,
+                    ToColumn = rightColumn,
+                    JoinType = joinType
+                });
+            }
+
+            // Parse SELECT columns to populate table columns
+            var selectMatch = SelectColumnsRegex().Match(sql);
+            if (selectMatch.Success)
+            {
+                var columnsText = selectMatch.Groups[1].Value;
+                
+                // Extract all qualified columns (table.column)
+                var qualifiedMatches = QualifiedColumnRegex().Matches(columnsText);
+
+                foreach (Match colMatch in qualifiedMatches)
+                {
+                    var tableAlias = colMatch.Groups[1].Value;
+                    var columnName = colMatch.Groups[2].Value;
+
+                    var table = data.Tables.FirstOrDefault(t => 
+                        t.Alias.Equals(tableAlias, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (table != null)
+                    {
+                        if (!table.Columns.Contains(columnName, StringComparer.OrdinalIgnoreCase))
+                        {
+                            table.Columns.Add(columnName);
+                        }
+                        // Track that this column was in the SELECT clause
+                        table.SelectedColumns.Add(columnName);
+                    }
+                }
+            }
+
+            // Add join columns to their respective tables (if not already present)
+            foreach (var join in data.Joins)
+            {
+                var fromTable = data.Tables.FirstOrDefault(t => 
+                    t.Alias.Equals(join.FromTable, StringComparison.OrdinalIgnoreCase));
+                var toTable = data.Tables.FirstOrDefault(t => 
+                    t.Alias.Equals(join.ToTable, StringComparison.OrdinalIgnoreCase));
+
+                if (fromTable != null && !fromTable.Columns.Contains(join.FromColumn, StringComparer.OrdinalIgnoreCase))
+                {
+                    fromTable.Columns.Add(join.FromColumn);
+                }
+
+                if (toTable != null && !toTable.Columns.Contains(join.ToColumn, StringComparer.OrdinalIgnoreCase))
+                {
+                    toTable.Columns.Add(join.ToColumn);
+                }
+            }
+
+            // If any table has no columns, add a placeholder primary key column
+            foreach (var table in data.Tables.Where(t => t.Columns.Count == 0))
+            {
+                table.Columns.Add($"{table.Name}Id");
+            }
+        }
+        catch
+        {
+            // Return empty data on parse error
+            return new SqlDiagramData();
+        }
+
+        return data;
+    }
+}

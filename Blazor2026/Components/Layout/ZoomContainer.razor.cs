@@ -57,7 +57,15 @@ public partial class ZoomContainer : IAsyncDisposable
 
         if (this._module != null)
         {
-            await this._module.DisposeAsync();
+            try
+            {
+                await this._module.DisposeAsync();
+            }
+            catch (JSDisconnectedException)
+            {
+                // The circuit is already disconnected, so we can't dispose the JS module.
+                // This is expected during navigation/page unload and doesn't cause memory leaks.
+            }
         }
 
         this.dotNetHelper?.Dispose();
