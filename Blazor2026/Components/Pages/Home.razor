@@ -1,3 +1,12 @@
 @page "/"
+@using Blazor2026.Components.Controls
 
 <PageTitle>Home</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h3" Class="mb-4">Welcome to Blazor 2026</MudText>
+    
+    <MudText Typo="Typo.h5" Class="mb-3">Featured: SQL Diagram Visualizer</MudText>
+    
+    <SqlDiagramComponent />
+</MudContainer>

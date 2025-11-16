@@ -1,0 +1,204 @@
+@using Blazor2026.Models
+@using Blazor2026.Services
+@implements IAsyncDisposable
+@namespace Blazor2026.Components.Controls
+
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
+    <MudText Typo="Typo.h4" Class="mb-4">SQL Diagram Visualizer</MudText>
+    
+    <MudGrid>
+        <MudItem xs="12">
+            <MudPaper Class="pa-4" Elevation="2">
+                <MudTextField T="string"
+                              @bind-Value="sqlQuery"
+                              Label="Enter SQL SELECT Statement"
+                              Variant="Variant.Outlined"
+                              Lines="8"
+                              Placeholder="SELECT t1.Col1, t2.Col2 FROM Table1 AS t1 INNER JOIN Table2 AS t2 ON t1.Id = t2.Table1Id"
+                              Immediate="false" />
+
+                <MudStack Row="true" Class="mt-2" Spacing="2">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Primary"
+                               OnClick="GenerateDiagram"
+                               StartIcon="@Icons.Material.Filled.AutoGraph">
+                        Generate Diagram
+                    </MudButton>
+
+                    <MudButton Variant="Variant.Text"
+                               Color="Color.Secondary"
+                               OnClick="LoadSampleQuery"
+                               StartIcon="@Icons.Material.Filled.Code">
+                        Load Sample Query
+                    </MudButton>
+
+                    @if (diagramData != null && diagramData.Tables.Any())
+                    {
+                        <MudDivider Vertical="true" FlexItem="true" />
+                        
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   OnClick="SaveLayout"
+                                   StartIcon="@Icons.Material.Filled.Save"
+                                   Title="Save Layout (Ctrl+S)">
+                            Save Layout
+                        </MudButton>
+
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Primary"
+                                   OnClick="LoadLayout"
+                                   StartIcon="@Icons.Material.Filled.FolderOpen">
+                            Load Layout
+                        </MudButton>
+
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Info"
+                                   OnClick="ExportAsSvg"
+                                   StartIcon="@Icons.Material.Filled.Download">
+                            Export SVG
+                        </MudButton>
+                    }
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+
+        @if (diagramData != null && diagramData.Tables.Any())
+        {
+            <MudItem xs="12">
+                <MudPaper Class="pa-4" Elevation="2">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+                        <MudText Typo="Typo.h6">Database Diagram</MudText>
+                        
+                        <MudTextField T="string"
+                                      @bind-Value="searchTerm"
+                                      Label="Search tables/columns"
+                                      Variant="Variant.Outlined"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      Immediate="true"
+                                      Clearable="true"
+                                      Style="max-width: 300px;"
+                                      Placeholder="Filter by name..." />
+                    </MudStack>
+                    
+                    <MudText Typo="Typo.caption" Class="mb-3" Color="Color.Secondary">
+                        <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Small" /> Drag tables to reposition them | 
+                        <MudIcon Icon="@Icons.Material.Filled.Keyboard" Size="Size.Small" /> Press F to fit, Delete to remove selected table
+                    </MudText>
+
+                    <div class="diagram-container" style="position: relative; min-height: 600px; background-color: var(--mud-palette-background-grey); border: 1px solid var(--mud-palette-divider); border-radius: 4px; overflow: auto;" @onkeydown="HandleKeyDown" tabindex="0">
+                        <svg width="100%" height="600" style="position: absolute; top: 0; left: 0; pointer-events: none;">
+                            @foreach (var join in diagramData.Joins)
+                            {
+                                var fromTable = GetFilteredTables().FirstOrDefault(t => t.Alias.Equals(join.FromTable, StringComparison.OrdinalIgnoreCase));
+                                var toTable = GetFilteredTables().FirstOrDefault(t => t.Alias.Equals(join.ToTable, StringComparison.OrdinalIgnoreCase));
+
+                                if (fromTable != null && toTable != null)
+                                {
+                                    <line x1="0" y1="0" x2="0" y2="0"
+                                          stroke="@GetJoinColor(join.JoinType)"
+                                          stroke-width="2"
+                                          stroke-linecap="round"
+                                          marker-end="url(#arrowhead-@join.JoinType.ToLowerInvariant())"
+                                          data-from-table="@join.FromTable"
+                                          data-to-table="@join.ToTable"
+                                          style="opacity: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));" />
+                                }
+                            }
+
+                            <defs>
+                                @foreach (var joinType in new[] { "INNER", "LEFT", "RIGHT", "FULL", "CROSS" })
+                                {
+                                    <marker id="arrowhead-@joinType.ToLowerInvariant()"
+                                            markerWidth="10"
+                                            markerHeight="10"
+                                            refX="9"
+                                            refY="3"
+                                            orient="auto">
+                                        <polygon points="0 0, 10 3, 0 6"
+                                                 fill="@GetJoinColor(joinType)" />
+                                    </marker>
+                                }
+                            </defs>
+                        </svg>
+
+                        @foreach (var table in GetFilteredTables())
+                        {
+                            var isCollapsed = IsTableCollapsed(table.Alias);
+                            var isSelected = selectedTable == table;
+                            <div class="table-box @(isSelected ? "selected" : "")"
+                                 data-table-id="@table.Alias"
+                                 style="left: @(table.X)px; top: @(table.Y)px; cursor: grab;"
+                                 @onclick="() => SelectTable(table)">
+                                <div class="table-header">
+                                    <MudIconButton Icon="@(isCollapsed ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                                   Size="Size.Small"
+                                                   Color="Color.Inherit"
+                                                   OnClick="() => ToggleTableCollapse(table.Alias)"
+                                                   Style="margin-right: 4px;" />
+                                    <MudIcon Icon="@Icons.Material.Filled.TableChart" Size="Size.Small" Class="mr-1" />
+                                    <strong>@table.Name</strong>
+                                    @if (table.Alias != table.Name)
+                                    {
+                                        <span class="table-alias"> (@table.Alias)</span>
+                                    }
+                                    @if (isCollapsed)
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Text" Style="margin-left: auto;">
+                                            @table.Columns.Count columns
+                                        </MudChip>
+                                    }
+                                </div>
+                                @if (!isCollapsed)
+                                {
+                                    <div class="table-columns">
+                                        @foreach (var column in table.Columns)
+                                        {
+                                            var isJoinColumn = IsJoinColumn(table.Alias, column);
+                                            var isSelectedCol = table.SelectedColumns.Contains(column);
+                                            var tooltip = isJoinColumn && isSelectedCol ? $"Join column (in SELECT) - {column}"
+                                                : isJoinColumn ? $"Join column (auto-added) - {column}"
+                                                : isSelectedCol ? $"Regular column (in SELECT) - {column}"
+                                                : $"Placeholder column - {column}";
+                                            
+                                            var highlight = !string.IsNullOrWhiteSpace(searchTerm) && 
+                                                          column.Contains(searchTerm, StringComparison.OrdinalIgnoreCase);
+                                            
+                                            <div class="column-row @(highlight ? "highlighted" : "")">
+                                                @if (isJoinColumn && isSelectedCol)
+                                                {
+                                                    <MudIcon Icon="@Icons.Material.Filled.Key" Size="Size.Small" Class="mr-1" Color="Color.Success" Title="@tooltip" />
+                                                }
+                                                else if (isJoinColumn)
+                                                {
+                                                    <MudIcon Icon="@Icons.Material.Filled.Key" Size="Size.Small" Class="mr-1" Color="Color.Warning" Title="@tooltip" />
+                                                }
+                                                else if (isSelectedCol)
+                                                {
+                                                    <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Class="mr-1" Color="Color.Default" Style="font-size: 8px;" Title="@tooltip" />
+                                                }
+                                                else
+                                                {
+                                                    <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Class="mr-1" Color="Color.Default" Style="font-size: 8px; opacity: 0.5;" Title="@tooltip" />
+                                                }
+                                                @column
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </MudPaper>
+            </MudItem>
+        }
+        else if (hasAttemptedParse)
+        {
+            <MudItem xs="12">
+                <MudAlert Severity="Severity.Info">
+                    Enter a SQL SELECT statement and click "Generate Diagram" to visualize the database relationships.
+                </MudAlert>
+            </MudItem>
+        }
+    </MudGrid>
+</MudContainer>
