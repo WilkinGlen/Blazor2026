@@ -77,12 +77,12 @@
                         <div class="table-columns">
                             @foreach (var column in table.Columns)
                             {
-                                var isJoinColumn = IsJoinColumn(table.Alias, column);
-                                var isSelectedCol = table.SelectedColumns.Contains(column);
-                                var tooltip = isJoinColumn && isSelectedCol ? $"Join column (in SELECT) - {column}"
-                                    : isJoinColumn ? $"Join column (auto-added) - {column}"
-                                    : isSelectedCol ? $"Regular column (in SELECT) - {column}"
-                                    : $"Placeholder column - {column}";
+                                var isJoinColumn = IsJoinColumn(table.Alias, column.Name);
+                                var isSelectedCol = table.SelectedColumns.Contains(column.Name);
+                                var tooltip = isJoinColumn && isSelectedCol ? $"Join column (in SELECT) - {column.DisplayName}"
+                                    : isJoinColumn ? $"Join column (auto-added) - {column.DisplayName}"
+                                    : isSelectedCol ? $"Regular column (in SELECT) - {column.DisplayName}"
+                                    : $"Placeholder column - {column.DisplayName}";
                                 
                                 <div class="column-row">
                                     @if (isJoinColumn && isSelectedCol)
@@ -101,7 +101,7 @@
                                     {
                                         <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Class="mr-1" Color="Color.Default" Style="font-size: 8px; opacity: 0.5;" Title="@tooltip" />
                                     }
-                                    @column
+                                    @column.DisplayName
                                 </div>
                             }
                         </div>

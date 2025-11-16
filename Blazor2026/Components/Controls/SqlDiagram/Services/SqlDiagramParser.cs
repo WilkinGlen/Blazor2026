@@ -14,7 +14,7 @@ public static partial class SqlDiagramParser
     [GeneratedRegex(@"SELECT\s+(.*?)\s+FROM", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex SelectColumnsRegex();
 
-    [GeneratedRegex(@"(\w+)\s*\.\s*\[?(\w+)\]?", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"(\w+)\s*\.\s*\[?(\w+)\]?(?:\s+AS\s+(\w+))?", RegexOptions.IgnoreCase)]
     private static partial Regex QualifiedColumnRegex();
 
     public static SqlDiagramData ParseSql(string sql)
@@ -90,14 +90,19 @@ public static partial class SqlDiagramParser
                 {
                     var tableAlias = colMatch.Groups[1].Value;
                     var columnName = colMatch.Groups[2].Value;
+                    var columnAlias = colMatch.Groups[3].Success ? colMatch.Groups[3].Value : null;
                     var table = data.Tables.FirstOrDefault(t =>
                         t.Alias.Equals(tableAlias, StringComparison.OrdinalIgnoreCase));
 
                     if (table != null)
                     {
-                        if (!table.Columns.Contains(columnName, StringComparer.OrdinalIgnoreCase))
+                        if (!table.Columns.Any(c => c.Name.Equals(columnName, StringComparison.OrdinalIgnoreCase)))
                         {
-                            table.Columns.Add(columnName);
+                            table.Columns.Add(new ColumnInfo
+                            {
+                                Name = columnName,
+                                Alias = columnAlias
+                            });
                         }
 
                         _ = table.SelectedColumns.Add(columnName);
@@ -112,20 +117,20 @@ public static partial class SqlDiagramParser
                 var toTable = data.Tables.FirstOrDefault(t =>
                     t.Alias.Equals(join.ToTable, StringComparison.OrdinalIgnoreCase));
 
-                if (fromTable != null && !fromTable.Columns.Contains(join.FromColumn, StringComparer.OrdinalIgnoreCase))
+                if (fromTable != null && !fromTable.Columns.Any(c => c.Name.Equals(join.FromColumn, StringComparison.OrdinalIgnoreCase)))
                 {
-                    fromTable.Columns.Add(join.FromColumn);
+                    fromTable.Columns.Add(new ColumnInfo { Name = join.FromColumn });
                 }
 
-                if (toTable != null && !toTable.Columns.Contains(join.ToColumn, StringComparer.OrdinalIgnoreCase))
+                if (toTable != null && !toTable.Columns.Any(c => c.Name.Equals(join.ToColumn, StringComparison.OrdinalIgnoreCase)))
                 {
-                    toTable.Columns.Add(join.ToColumn);
+                    toTable.Columns.Add(new ColumnInfo { Name = join.ToColumn });
                 }
             }
 
             foreach (var table in data.Tables.Where(t => t.Columns.Count == 0))
             {
-                table.Columns.Add($"{table.Name}Id");
+                table.Columns.Add(new ColumnInfo { Name = $"{table.Name}Id" });
             }
         }
         catch
