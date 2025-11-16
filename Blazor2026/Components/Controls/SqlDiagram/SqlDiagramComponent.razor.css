@@ -68,11 +68,6 @@
     background-color: #f5f5f5;
 }
 
-.column-row.highlighted {
-    background-color: #fff3cd;
-    font-weight: 600;
-}
-
 /* Dark mode support */
 html[data-mud-theme="dark"] .table-box {
     background: #1e1e1e;
@@ -89,10 +84,6 @@ html[data-mud-theme="dark"] .column-row {
 
 html[data-mud-theme="dark"] .column-row:hover {
     background-color: #2a2a2a;
-}
-
-html[data-mud-theme="dark"] .column-row.highlighted {
-    background-color: #4a4a00;
 }
 
 /* Keyboard shortcut hint animation */

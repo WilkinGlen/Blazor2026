@@ -1,26 +1,34 @@
 namespace Blazor2026.Components.Controls;
 
-using Blazor2026.Models;
 using Blazor2026.Components.Controls.SqlDiagram.Services;
+using Blazor2026.Models;
 using Microsoft.AspNetCore.Components;
-using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
-using MudBlazor;
 
 public partial class SqlDiagramComponent : IAsyncDisposable
 {
     private IJSObjectReference? _module;
     private DotNetObjectReference<SqlDiagramComponent>? _dotNetHelper;
-    private string sqlQuery = string.Empty;
-    private string searchTerm = string.Empty;
     private SqlDiagramData? diagramData;
-    private bool hasAttemptedParse = false;
     private bool needsLineUpdate = false;
-    private static readonly Dictionary<string, bool> dictionary = new();
+    private static readonly Dictionary<string, bool> dictionary = [];
     private readonly Dictionary<string, bool> collapsedTables = dictionary;
+    private string? _previousSqlQuery;
+
+    [Parameter]
+    public string? SqlQuery { get; set; }
 
     [Inject]
     public required IJSRuntime JSRuntime { get; set; }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (this.SqlQuery != this._previousSqlQuery && !string.IsNullOrWhiteSpace(this.SqlQuery))
+        {
+            this._previousSqlQuery = this.SqlQuery;
+            await this.GenerateDiagram();
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -59,8 +67,13 @@ public partial class SqlDiagramComponent : IAsyncDisposable
 
     private async Task GenerateDiagram()
     {
-        this.hasAttemptedParse = true;
-        this.diagramData = SqlDiagramParser.ParseSql(this.sqlQuery);
+        if (string.IsNullOrWhiteSpace(this.SqlQuery))
+        {
+            this.diagramData = null;
+            return;
+        }
+
+        this.diagramData = SqlDiagramParser.ParseSql(this.SqlQuery);
         this.StateHasChanged();
 
         if (this.diagramData?.Tables.Count != 0 == true)
@@ -96,53 +109,6 @@ public partial class SqlDiagramComponent : IAsyncDisposable
     private bool IsTableCollapsed(string tableAlias)
     {
         return this.collapsedTables.TryGetValue(tableAlias, out var collapsed) && collapsed;
-    }
-
-    private async Task HandleKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key is "f" or "F")
-        {
-            // TODO: Implement fit to viewport
-        }
-
-        // Delete functionality removed - no table selection
-    }
-
-    private IEnumerable<TableInfo> GetFilteredTables()
-    {
-        if (this.diagramData == null)
-        {
-            return [];
-        }
-
-        if (string.IsNullOrWhiteSpace(this.searchTerm))
-        {
-            return this.diagramData.Tables;
-        }
-
-        var search = this.searchTerm.ToLowerInvariant();
-        return this.diagramData.Tables.Where(t =>
-            t.Name.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-            t.Alias.Contains(search, StringComparison.OrdinalIgnoreCase) ||
-            t.Columns.Any(c => c.Contains(search, StringComparison.OrdinalIgnoreCase)));
-    }
-
-    private void LoadSampleQuery()
-    {
-        this.sqlQuery = @"SELECT 
-    o.OrderId, 
-    o.OrderDate, 
-    c.CustomerName, 
-    p.ProductName, 
-    od.Quantity, 
-    od.Price
-FROM Orders AS o
-INNER JOIN Customers AS c ON o.CustomerId = c.CustomerId
-INNER JOIN OrderDetails AS od ON o.OrderId = od.OrderId
-LEFT JOIN Products AS p ON od.ProductId = p.ProductId
-WHERE o.OrderDate >= '2024-01-01'";
-
-        _ = this.GenerateDiagram();
     }
 
     private static string GetJoinColor(string joinType)
