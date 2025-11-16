@@ -7,6 +7,10 @@ using Microsoft.JSInterop;
 
 public partial class SqlDiagramComponent : IAsyncDisposable
 {
+    private const double ZoomStep = 0.1;
+    private const double MinZoom = 0.5;
+    private const double MaxZoom = 2.0;
+
     private IJSObjectReference? _module;
     private DotNetObjectReference<SqlDiagramComponent>? _dotNetHelper;
     private SqlDiagramData? diagramData;
@@ -14,6 +18,7 @@ public partial class SqlDiagramComponent : IAsyncDisposable
     private static readonly Dictionary<string, bool> dictionary = [];
     private readonly Dictionary<string, bool> collapsedTables = dictionary;
     private string? _previousSqlQuery;
+    private double diagramZoom = 1.0;
 
     [Parameter]
     public string? SqlQuery { get; set; }
@@ -65,6 +70,38 @@ public partial class SqlDiagramComponent : IAsyncDisposable
         }
     }
 
+    private void ZoomIn()
+    {
+        if (this.diagramZoom < MaxZoom)
+        {
+            this.diagramZoom = Math.Min(this.diagramZoom + ZoomStep, MaxZoom);
+            this.needsLineUpdate = true;
+            this.StateHasChanged();
+        }
+    }
+
+    private void ZoomOut()
+    {
+        if (this.diagramZoom > MinZoom)
+        {
+            this.diagramZoom = Math.Max(this.diagramZoom - ZoomStep, MinZoom);
+            this.needsLineUpdate = true;
+            this.StateHasChanged();
+        }
+    }
+
+    private void ResetZoom()
+    {
+        this.diagramZoom = 1.0;
+        this.needsLineUpdate = true;
+        this.StateHasChanged();
+    }
+
+    private int GetZoomPercentage()
+    {
+        return (int)Math.Round(this.diagramZoom * 100);
+    }
+
     private async Task GenerateDiagram()
     {
         if (string.IsNullOrWhiteSpace(this.SqlQuery))
@@ -92,12 +129,22 @@ public partial class SqlDiagramComponent : IAsyncDisposable
                 }
             }
 
-            this._module = await this.JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/diagram.js");
-            this._dotNetHelper = DotNetObjectReference.Create(this);
-            await this._module.InvokeVoidAsync("initializeDraggable", this._dotNetHelper);
+            try
+            {
+                this._module = await this.JSRuntime.InvokeAsync<IJSObjectReference>("import", "./js/diagram.js");
+                this._dotNetHelper = DotNetObjectReference.Create(this);
+                await this._module.InvokeVoidAsync("initializeDraggable", this._dotNetHelper);
 
-            this.needsLineUpdate = true;
-            this.StateHasChanged();
+                this.needsLineUpdate = true;
+                this.StateHasChanged();
+            }
+            catch (JSDisconnectedException)
+            {
+                // Circuit disconnected during initialization - cleanup and ignore
+                this._module = null;
+                this._dotNetHelper?.Dispose();
+                this._dotNetHelper = null;
+            }
         }
     }
 

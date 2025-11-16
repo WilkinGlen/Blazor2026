@@ -5,117 +5,144 @@
 @if (diagramData != null && diagramData.Tables.Any())
 {
     <MudPaper Class="pa-4" Elevation="2" Style="display: flex; flex-direction: column; height: 100%;">
-        <MudText Typo="Typo.h6" Class="mb-3">Database Diagram</MudText>
-        
-        <MudText Typo="Typo.caption" Class="mb-3" Color="Color.Secondary">
-            <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Small" /> Drag tables to reposition them
-        </MudText>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div>
+                <MudText Typo="Typo.h6">Database Diagram</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    <MudIcon Icon="@Icons.Material.Filled.TouchApp" Size="Size.Small" /> Drag tables to reposition them
+                </MudText>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <MudIconButton Icon="@Icons.Material.Filled.ZoomOut"
+                               Color="Color.Default"
+                               Size="Size.Small"
+                               OnClick="ZoomOut"
+                               Disabled="@(diagramZoom <= MinZoom)"
+                               Title="Zoom Out (Ctrl/Cmd + -)" />
+                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Text">
+                    @GetZoomPercentage()%
+                </MudChip>
+                <MudIconButton Icon="@Icons.Material.Filled.ZoomIn"
+                               Color="Color.Default"
+                               Size="Size.Small"
+                               OnClick="ZoomIn"
+                               Disabled="@(diagramZoom >= MaxZoom)"
+                               Title="Zoom In (Ctrl/Cmd + +)" />
+                <MudIconButton Icon="@Icons.Material.Filled.CenterFocusWeak"
+                               Color="Color.Default"
+                               Size="Size.Small"
+                               OnClick="ResetZoom"
+                               Title="Reset Zoom (Ctrl/Cmd + 0)" />
+            </div>
+        </div>
 
-        <div class="diagram-container" style="position: relative; width: 100%; height: 100%; background-color: var(--mud-palette-background-grey); border: 1px solid var(--mud-palette-divider); border-radius: 4px; flex: 1; overflow: auto;">
-            <svg width="100%" height="100%" style="position: absolute; top: 0; left: 0; pointer-events: none; min-width: 100%; min-height: 100%;">
-                @foreach (var join in diagramData.Joins)
+        <div class="diagram-zoom-container" style="position: relative; width: 100%; height: 100%; background-color: var(--mud-palette-background-grey); border: 1px solid var(--mud-palette-divider); border-radius: 4px; flex: 1; overflow: auto;">
+            <div style="transform: scale(@diagramZoom); transform-origin: top left; width: @(100 / diagramZoom)%; height: @(100 / diagramZoom)%;">
+                <svg width="100%" height="100%" style="position: absolute; top: 0; left: 0; pointer-events: none; min-width: 100%; min-height: 100%;">
+                    @foreach (var join in diagramData.Joins)
+                    {
+                        var fromTable = diagramData.Tables.FirstOrDefault(t => t.Alias.Equals(join.FromTable, StringComparison.OrdinalIgnoreCase));
+                        var toTable = diagramData.Tables.FirstOrDefault(t => t.Alias.Equals(join.ToTable, StringComparison.OrdinalIgnoreCase));
+
+                        if (fromTable != null && toTable != null)
+                        {
+                            <line x1="0" y1="0" x2="0" y2="0"
+                                  stroke="@GetJoinColor(join.JoinType)"
+                                  stroke-width="2"
+                                  stroke-linecap="round"
+                                  marker-end="url(#arrowhead-@join.JoinType.ToLowerInvariant())"
+                                  data-from-table="@join.FromTable"
+                                  data-to-table="@join.ToTable"
+                                  style="opacity: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));" />
+                        }
+                    }
+
+                    <defs>
+                        @foreach (var joinType in new[] { "INNER", "LEFT", "RIGHT", "FULL", "CROSS" })
+                        {
+                            <marker id="arrowhead-@joinType.ToLowerInvariant()"
+                                    markerWidth="10"
+                                    markerHeight="10"
+                                    refX="9"
+                                    refY="3"
+                                    orient="auto">
+                                <polygon points="0 0, 10 3, 0 6"
+                                         fill="@GetJoinColor(joinType)" />
+                            </marker>
+                        }
+                    </defs>
+                </svg>
+
+                @foreach (var table in diagramData.Tables)
                 {
-                    var fromTable = diagramData.Tables.FirstOrDefault(t => t.Alias.Equals(join.FromTable, StringComparison.OrdinalIgnoreCase));
-                    var toTable = diagramData.Tables.FirstOrDefault(t => t.Alias.Equals(join.ToTable, StringComparison.OrdinalIgnoreCase));
-
-                    if (fromTable != null && toTable != null)
-                    {
-                        <line x1="0" y1="0" x2="0" y2="0"
-                              stroke="@GetJoinColor(join.JoinType)"
-                              stroke-width="2"
-                              stroke-linecap="round"
-                              marker-end="url(#arrowhead-@join.JoinType.ToLowerInvariant())"
-                              data-from-table="@join.FromTable"
-                              data-to-table="@join.ToTable"
-                              style="opacity: 0; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.1));" />
-                    }
-                }
-
-                <defs>
-                    @foreach (var joinType in new[] { "INNER", "LEFT", "RIGHT", "FULL", "CROSS" })
-                    {
-                        <marker id="arrowhead-@joinType.ToLowerInvariant()"
-                                markerWidth="10"
-                                markerHeight="10"
-                                refX="9"
-                                refY="3"
-                                orient="auto">
-                            <polygon points="0 0, 10 3, 0 6"
-                                     fill="@GetJoinColor(joinType)" />
-                        </marker>
-                    }
-                </defs>
-            </svg>
-
-            @foreach (var table in diagramData.Tables)
-            {
-                var isCollapsed = IsTableCollapsed(table.Alias);
-                <div class="table-box"
-                     data-table-id="@table.Alias"
-                     style="left: @(table.X)px; top: @(table.Y)px; cursor: grab;">
-                    <div class="table-header">
-                        <MudIconButton Icon="@(isCollapsed ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
-                                       Size="Size.Small"
-                                       Color="Color.Inherit"
-                                       OnClick="() => ToggleTableCollapse(table.Alias)"
-                                       Style="margin-right: 4px;" />
-                        <MudIcon Icon="@Icons.Material.Filled.TableChart" Size="Size.Small" Class="mr-1" />
-                        <strong>@table.Name</strong>
-                        @if (table.Alias != table.Name)
-                        {
-                            <span class="table-alias"> (@table.Alias)</span>
-                        }
-                        @if (isCollapsed)
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Text" Style="margin-left: auto;">
-                                @table.Columns.Count columns
-                            </MudChip>
-                        }
-                    </div>
-                    @if (!isCollapsed)
-                    {
-                        <div class="table-columns">
-                            @foreach (var column in table.Columns)
+                    var isCollapsed = IsTableCollapsed(table.Alias);
+                    <div class="table-box"
+                         data-table-id="@table.Alias"
+                         style="left: @(table.X)px; top: @(table.Y)px; cursor: grab;">
+                        <div class="table-header">
+                            <MudIconButton Icon="@(isCollapsed ? Icons.Material.Filled.ExpandMore : Icons.Material.Filled.ExpandLess)"
+                                           Size="Size.Small"
+                                           Color="Color.Inherit"
+                                           OnClick="() => ToggleTableCollapse(table.Alias)"
+                                           Style="margin-right: 4px;" />
+                            <MudIcon Icon="@Icons.Material.Filled.TableChart" Size="Size.Small" Class="mr-1" />
+                            <strong>@table.Name</strong>
+                            @if (table.Alias != table.Name)
                             {
-                                var isJoinColumn = IsJoinColumn(table.Alias, column.Name);
-                                var isSelectedCol = table.SelectedColumns.Contains(column.Name);
-                                var tooltip = isJoinColumn && isSelectedCol ? $"Join column (in SELECT) - {column.DisplayName}"
-                                    : isJoinColumn ? $"Join column (auto-added) - {column.DisplayName}"
-                                    : isSelectedCol ? $"Regular column (in SELECT) - {column.DisplayName}"
-                                    : $"Placeholder column - {column.DisplayName}";
-                                
-                                <div class="column-row">
-                                    @if (isJoinColumn && isSelectedCol)
-                                    {
-                                        <MudIcon Icon="@Icons.Material.Filled.Key" Size="Size.Small" Class="mr-1" Color="Color.Success" Title="@tooltip" />
-                                    }
-                                    else if (isJoinColumn)
-                                    {
-                                        <MudIcon Icon="@Icons.Material.Filled.Key" Size="Size.Small" Class="mr-1" Color="Color.Warning" Title="@tooltip" />
-                                    }
-                                    else if (isSelectedCol)
-                                    {
-                                        <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Class="mr-1" Color="Color.Default" Style="font-size: 8px;" Title="@tooltip" />
-                                    }
-                                    else
-                                    {
-                                        <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Class="mr-1" Color="Color.Default" Style="font-size: 8px; opacity: 0.5;" Title="@tooltip" />
-                                    }
-                                    @if (!string.IsNullOrEmpty(column.Alias))
-                                    {
-                                        <span>@column.Alias</span>
-                                        <span class="column-alias"> (@column.Name)</span>
-                                    }
-                                    else
-                                    {
-                                        <span>@column.Name</span>
-                                    }
-                                </div>
+                                <span class="table-alias"> (@table.Alias)</span>
+                            }
+                            @if (isCollapsed)
+                            {
+                                <MudChip T="string" Size="Size.Small" Color="Color.Default" Variant="Variant.Text" Style="margin-left: auto;">
+                                    @table.Columns.Count columns
+                                </MudChip>
                             }
                         </div>
-                    }
-                </div>
-            }
+                        @if (!isCollapsed)
+                        {
+                            <div class="table-columns">
+                                @foreach (var column in table.Columns)
+                                {
+                                    var isJoinColumn = IsJoinColumn(table.Alias, column.Name);
+                                    var isSelectedCol = table.SelectedColumns.Contains(column.Name);
+                                    var tooltip = isJoinColumn && isSelectedCol ? $"Join column (in SELECT) - {column.DisplayName}"
+                                        : isJoinColumn ? $"Join column (auto-added) - {column.DisplayName}"
+                                        : isSelectedCol ? $"Regular column (in SELECT) - {column.DisplayName}"
+                                        : $"Placeholder column - {column.DisplayName}";
+                                    
+                                    <div class="column-row">
+                                        @if (isJoinColumn && isSelectedCol)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Key" Size="Size.Small" Class="mr-1" Color="Color.Success" Title="@tooltip" />
+                                        }
+                                        else if (isJoinColumn)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Key" Size="Size.Small" Class="mr-1" Color="Color.Warning" Title="@tooltip" />
+                                        }
+                                        else if (isSelectedCol)
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Class="mr-1" Color="Color.Default" Style="font-size: 8px;" Title="@tooltip" />
+                                        }
+                                        else
+                                        {
+                                            <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Class="mr-1" Color="Color.Default" Style="font-size: 8px; opacity: 0.5;" Title="@tooltip" />
+                                        }
+                                        @if (!string.IsNullOrEmpty(column.Alias))
+                                        {
+                                            <span>@column.Alias</span>
+                                            <span class="column-alias"> (@column.Name)</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@column.Name</span>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
         </div>
     </MudPaper>
 }

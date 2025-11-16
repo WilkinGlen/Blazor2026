@@ -1,10 +1,15 @@
 export function initializeDraggable(dotNetHelper) {
-    const container = document.querySelector('.diagram-container');
+    const container = document.querySelector('.diagram-zoom-container');
     if (!container) return;
+
+    const zoomWrapper = container.querySelector('div[style*="transform: scale"]');
+    if (!zoomWrapper) return;
 
     let activeElement = null;
     let startX = 0;
     let startY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
 
     container.addEventListener('mousedown', dragStart, false);
     document.addEventListener('mouseup', dragEnd, false);
@@ -12,6 +17,15 @@ export function initializeDraggable(dotNetHelper) {
     container.addEventListener('touchstart', dragStart, false);
     document.addEventListener('touchend', dragEnd, false);
     document.addEventListener('touchmove', drag, false);
+
+    function getZoomScale() {
+        const zoomWrapper = container.querySelector('div[style*="transform: scale"]');
+        if (!zoomWrapper) return 1.0;
+        
+        const transform = zoomWrapper.style.transform;
+        const match = transform.match(/scale\(([0-9.]+)\)/);
+        return match ? parseFloat(match[1]) : 1.0;
+    }
 
     function dragStart(e) {
         const target = e.target.closest('.table-box');
@@ -67,6 +81,7 @@ export function initializeDraggable(dotNetHelper) {
         e.preventDefault();
 
         const containerRect = container.getBoundingClientRect();
+        const zoomScale = getZoomScale();
         let clientX, clientY;
         
         if (e.type === 'touchmove') {
@@ -79,9 +94,9 @@ export function initializeDraggable(dotNetHelper) {
         }
 
         // Mouse position in container content coordinates
-        // = viewport position - container viewport position + scroll - offset from element edge
-        const newX = clientX - containerRect.left + container.scrollLeft - startX;
-        const newY = clientY - containerRect.top + container.scrollTop - startY;
+        // Account for zoom scale when calculating positions
+        const newX = (clientX - containerRect.left + container.scrollLeft - startX) / zoomScale;
+        const newY = (clientY - containerRect.top + container.scrollTop - startY) / zoomScale;
 
         // Clamp position to keep table within reasonable bounds (allow some dragging outside)
         // But prevent negative positions
@@ -105,11 +120,12 @@ export function initializeDraggable(dotNetHelper) {
         // Calculate the maximum extent of all tables
         tables.forEach(table => {
             const rect = table.getBoundingClientRect();
+            const zoomScale = getZoomScale();
             
             const left = parseInt(table.style.left) || 0;
             const top = parseInt(table.style.top) || 0;
-            const width = rect.width;
-            const height = rect.height;
+            const width = rect.width / zoomScale;
+            const height = rect.height / zoomScale;
             
             maxRight = Math.max(maxRight, left + width);
             maxBottom = Math.max(maxBottom, top + height);
@@ -121,8 +137,9 @@ export function initializeDraggable(dotNetHelper) {
         
         // Get the container's natural size
         const containerRect = container.getBoundingClientRect();
-        const naturalWidth = containerRect.width;
-        const naturalHeight = containerRect.height;
+        const zoomScale = getZoomScale();
+        const naturalWidth = containerRect.width / zoomScale;
+        const naturalHeight = containerRect.height / zoomScale;
         
         // Set SVG size to the larger of: natural size or content size
         const svg = container.querySelector('svg');
@@ -186,9 +203,10 @@ export function initializeDraggable(dotNetHelper) {
 
     function getTableDimensions(tableElement) {
         const rect = tableElement.getBoundingClientRect();
+        const zoomScale = getZoomScale();
         return {
-            width: rect.width,
-            height: rect.height
+            width: rect.width / zoomScale,
+            height: rect.height / zoomScale
         };
     }
 
@@ -247,21 +265,30 @@ export function initializeDraggable(dotNetHelper) {
     return {
         dispose: () => {
             container.removeEventListener('mousedown', dragStart);
-            container.removeEventListener('mouseup', dragEnd);
-            container.removeEventListener('mousemove', drag);
+            document.removeEventListener('mouseup', dragEnd);
+            document.removeEventListener('mousemove', drag);
             container.removeEventListener('touchstart', dragStart);
-            container.removeEventListener('touchend', dragEnd);
-            container.removeEventListener('touchmove', drag);
+            document.removeEventListener('touchend', dragEnd);
+            document.removeEventListener('touchmove', drag);
         }
     };
 }
 
 export function updateAllLines() {
-    const container = document.querySelector('.diagram-container');
+    const container = document.querySelector('.diagram-zoom-container');
     if (!container) return;
 
     const svg = container.querySelector('svg');
     if (!svg) return;
+
+    function getZoomScale() {
+        const zoomWrapper = container.querySelector('div[style*="transform: scale"]');
+        if (!zoomWrapper) return 1.0;
+        
+        const transform = zoomWrapper.style.transform;
+        const match = transform.match(/scale\(([0-9.]+)\)/);
+        return match ? parseFloat(match[1]) : 1.0;
+    }
 
     function getEdgePoint(boxX, boxY, boxWidth, boxHeight, centerX, centerY, targetX, targetY) {
         // Calculate direction from center to target
@@ -314,9 +341,10 @@ export function updateAllLines() {
 
     function getTableDimensions(tableElement) {
         const rect = tableElement.getBoundingClientRect();
+        const zoomScale = getZoomScale();
         return {
-            width: rect.width,
-            height: rect.height
+            width: rect.width / zoomScale,
+            height: rect.height / zoomScale
         };
     }
 
