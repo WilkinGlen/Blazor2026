@@ -1,10 +1,17 @@
 namespace Blazor2026.Models;
 
+public class ColumnDetails
+{
+    public string Name { get; set; } = string.Empty;
+    public string? Alias { get; set; }
+    public string DisplayName => !string.IsNullOrEmpty(this.Alias) ? $"{this.Alias} ({this.Name})" : this.Name;
+}
+
 public class TableInfo
 {
     public string Name { get; set; } = string.Empty;
     public string Alias { get; set; } = string.Empty;
-    public List<string> Columns { get; set; } = [];
+    public List<ColumnDetails> Columns { get; set; } = [];
     public HashSet<string> SelectedColumns { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public double X { get; set; }
     public double Y { get; set; }

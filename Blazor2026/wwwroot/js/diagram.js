@@ -5,8 +5,6 @@ export function initializeDraggable(dotNetHelper) {
     let activeElement = null;
     let startX = 0;
     let startY = 0;
-    let initialLeft = 0;
-    let initialTop = 0;
 
     container.addEventListener('mousedown', dragStart, false);
     document.addEventListener('mouseup', dragEnd, false);
@@ -23,7 +21,6 @@ export function initializeDraggable(dotNetHelper) {
         
         // Get the actual rendered position
         const rect = target.getBoundingClientRect();
-        const containerRect = container.getBoundingClientRect();
         
         // Store where element currently is (in container content coordinates)
         initialLeft = parseInt(target.style.left) || 0;

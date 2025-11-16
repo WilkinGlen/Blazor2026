@@ -69,6 +69,14 @@
     background-color: #f5f5f5;
 }
 
+.column-alias {
+    font-weight: normal;
+    opacity: 0.6;
+    margin-left: 2px;
+    font-size: 0.85em;
+    font-style: italic;
+}
+
 /* Dark mode support */
 html[data-mud-theme="dark"] .table-box {
     background: #1e1e1e;

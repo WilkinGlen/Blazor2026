@@ -13,12 +13,12 @@ public partial class Home
     private void LoadSampleQuery()
     {
         this.sqlQuery = @"SELECT 
-    o.OrderId, 
-    o.OrderDate, 
-    c.CustomerName, 
-    p.ProductName, 
-    od.Quantity, 
-    od.Price
+    o.OrderId AS OrderNumber, 
+    o.OrderDate AS DateOrdered, 
+    c.CustomerName AS Client, 
+    p.ProductName AS Item, 
+    od.Quantity AS Qty, 
+    od.Price AS UnitPrice
 FROM Orders AS o
 INNER JOIN Customers AS c ON o.CustomerId = c.CustomerId
 INNER JOIN OrderDetails AS od ON o.OrderId = od.OrderId

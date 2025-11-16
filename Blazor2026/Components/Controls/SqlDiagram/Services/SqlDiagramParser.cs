@@ -14,7 +14,7 @@ public static partial class SqlDiagramParser
     [GeneratedRegex(@"SELECT\s+(.*?)\s+FROM", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex SelectColumnsRegex();
 
-    [GeneratedRegex(@"(\w+)\s*\.\s*\[?(\w+)\]?", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"(\w+)\s*\.\s*\[?(\w+)\]?(?:\s+(?:AS\s+)?(\w+))?", RegexOptions.IgnoreCase)]
     private static partial Regex QualifiedColumnRegex();
 
     public static SqlDiagramData ParseSql(string sql)
@@ -62,8 +62,8 @@ public static partial class SqlDiagramParser
                     // Cascade tables with headers visible
                     // Horizontal offset: 150px (50% of typical table width)
                     // Vertical offset: 40px (approximate header height) so next table starts at bottom of previous header
-                    int tableIndex = data.Tables.Count;
-                    
+                    var tableIndex = data.Tables.Count;
+
                     data.Tables.Add(new TableInfo
                     {
                         Name = tableName,
@@ -93,14 +93,20 @@ public static partial class SqlDiagramParser
                 {
                     var tableAlias = colMatch.Groups[1].Value;
                     var columnName = colMatch.Groups[2].Value;
+                    var columnAlias = colMatch.Groups[3].Success ? colMatch.Groups[3].Value : null;
+
                     var table = data.Tables.FirstOrDefault(t =>
                         t.Alias.Equals(tableAlias, StringComparison.OrdinalIgnoreCase));
 
                     if (table != null)
                     {
-                        if (!table.Columns.Contains(columnName, StringComparer.OrdinalIgnoreCase))
+                        if (!table.Columns.Any(c => c.Name.Equals(columnName, StringComparison.OrdinalIgnoreCase)))
                         {
-                            table.Columns.Add(columnName);
+                            table.Columns.Add(new ColumnDetails
+                            {
+                                Name = columnName,
+                                Alias = columnAlias
+                            });
                         }
 
                         _ = table.SelectedColumns.Add(columnName);
@@ -115,20 +121,20 @@ public static partial class SqlDiagramParser
                 var toTable = data.Tables.FirstOrDefault(t =>
                     t.Alias.Equals(join.ToTable, StringComparison.OrdinalIgnoreCase));
 
-                if (fromTable != null && !fromTable.Columns.Contains(join.FromColumn, StringComparer.OrdinalIgnoreCase))
+                if (fromTable != null && !fromTable.Columns.Any(c => c.Name.Equals(join.FromColumn, StringComparison.OrdinalIgnoreCase)))
                 {
-                    fromTable.Columns.Add(join.FromColumn);
+                    fromTable.Columns.Add(new ColumnDetails { Name = join.FromColumn });
                 }
 
-                if (toTable != null && !toTable.Columns.Contains(join.ToColumn, StringComparer.OrdinalIgnoreCase))
+                if (toTable != null && !toTable.Columns.Any(c => c.Name.Equals(join.ToColumn, StringComparison.OrdinalIgnoreCase)))
                 {
-                    toTable.Columns.Add(join.ToColumn);
+                    toTable.Columns.Add(new ColumnDetails { Name = join.ToColumn });
                 }
             }
 
             foreach (var table in data.Tables.Where(t => t.Columns.Count == 0))
             {
-                table.Columns.Add($"{table.Name}Id");
+                table.Columns.Add(new ColumnDetails { Name = $"{table.Name}Id" });
             }
         }
         catch
