@@ -9,11 +9,11 @@ export function initializeDraggable(dotNetHelper) {
     let initialTop = 0;
 
     container.addEventListener('mousedown', dragStart, false);
-    container.addEventListener('mouseup', dragEnd, false);
-    container.addEventListener('mousemove', drag, false);
+    document.addEventListener('mouseup', dragEnd, false);
+    document.addEventListener('mousemove', drag, false);
     container.addEventListener('touchstart', dragStart, false);
-    container.addEventListener('touchend', dragEnd, false);
-    container.addEventListener('touchmove', drag, false);
+    document.addEventListener('touchend', dragEnd, false);
+    document.addEventListener('touchmove', drag, false);
 
     function dragStart(e) {
         const target = e.target.closest('.table-box');
@@ -59,6 +59,9 @@ export function initializeDraggable(dotNetHelper) {
         }
 
         activeElement = null;
+        
+        // After drag ends, check if we can shrink the scrollable area
+        adjustContainerSize();
     }
 
     function drag(e) {
@@ -83,10 +86,56 @@ export function initializeDraggable(dotNetHelper) {
         const newX = clientX - containerRect.left + container.scrollLeft - startX;
         const newY = clientY - containerRect.top + container.scrollTop - startY;
 
-        activeElement.style.left = newX + 'px';
-        activeElement.style.top = newY + 'px';
+        // Clamp position to keep table within reasonable bounds (allow some dragging outside)
+        // But prevent negative positions
+        const clampedX = Math.max(0, newX);
+        const clampedY = Math.max(0, newY);
+
+        activeElement.style.left = clampedX + 'px';
+        activeElement.style.top = clampedY + 'px';
 
         updateConnectedLines(activeElement);
+    }
+
+    function adjustContainerSize() {
+        // Find all table boxes
+        const tables = container.querySelectorAll('.table-box');
+        if (tables.length === 0) return;
+        
+        let maxRight = 0;
+        let maxBottom = 0;
+        
+        // Calculate the maximum extent of all tables
+        tables.forEach(table => {
+            const rect = table.getBoundingClientRect();
+            
+            const left = parseInt(table.style.left) || 0;
+            const top = parseInt(table.style.top) || 0;
+            const width = rect.width;
+            const height = rect.height;
+            
+            maxRight = Math.max(maxRight, left + width);
+            maxBottom = Math.max(maxBottom, top + height);
+        });
+        
+        // Add some padding
+        maxRight += 50;
+        maxBottom += 50;
+        
+        // Get the container's natural size
+        const containerRect = container.getBoundingClientRect();
+        const naturalWidth = containerRect.width;
+        const naturalHeight = containerRect.height;
+        
+        // Set SVG size to the larger of: natural size or content size
+        const svg = container.querySelector('svg');
+        if (svg) {
+            const newWidth = Math.max(naturalWidth, maxRight);
+            const newHeight = Math.max(naturalHeight, maxBottom);
+            
+            svg.style.minWidth = newWidth + 'px';
+            svg.style.minHeight = newHeight + 'px';
+        }
     }
 
     function getEdgePoint(boxX, boxY, boxWidth, boxHeight, centerX, centerY, targetX, targetY) {
