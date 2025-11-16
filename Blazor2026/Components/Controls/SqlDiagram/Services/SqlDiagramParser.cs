@@ -1,4 +1,4 @@
-namespace Blazor2026.Services;
+namespace Blazor2026.Components.Controls.SqlDiagram.Services;
 
 using System.Text.RegularExpressions;
 using Blazor2026.Models;
