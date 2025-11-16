@@ -3,8 +3,10 @@ export function initializeDraggable(dotNetHelper) {
     if (!container) return;
 
     let activeElement = null;
-    let offsetX = 0;
-    let offsetY = 0;
+    let startX = 0;
+    let startY = 0;
+    let initialLeft = 0;
+    let initialTop = 0;
 
     container.addEventListener('mousedown', dragStart, false);
     container.addEventListener('mouseup', dragEnd, false);
@@ -19,19 +21,22 @@ export function initializeDraggable(dotNetHelper) {
 
         activeElement = target;
         
-        // Get the bounding rectangles
-        const targetRect = target.getBoundingClientRect();
+        // Get the actual rendered position
+        const rect = target.getBoundingClientRect();
         const containerRect = container.getBoundingClientRect();
+        
+        // Store where element currently is (in container content coordinates)
+        initialLeft = parseInt(target.style.left) || 0;
+        initialTop = parseInt(target.style.top) || 0;
 
+        // Store mouse position relative to the element's top-left corner
         if (e.type === 'touchstart') {
             const touch = e.touches[0];
-            // Calculate offset from top-left of the table box to the click point
-            offsetX = touch.clientX - targetRect.left;
-            offsetY = touch.clientY - targetRect.top;
+            startX = touch.clientX - rect.left;
+            startY = touch.clientY - rect.top;
         } else {
-            // Calculate offset from top-left of the table box to the click point
-            offsetX = e.clientX - targetRect.left;
-            offsetY = e.clientY - targetRect.top;
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
         }
 
         target.style.cursor = 'grabbing';
@@ -46,11 +51,9 @@ export function initializeDraggable(dotNetHelper) {
         
         target.style.cursor = 'grab';
 
-        // Get final position
         const finalX = parseInt(target.style.left) || 0;
         const finalY = parseInt(target.style.top) || 0;
 
-        // Notify Blazor of the new position
         if (dotNetHelper && tableId) {
             dotNetHelper.invokeMethodAsync('UpdateTablePosition', tableId, finalX, finalY);
         }
@@ -63,6 +66,7 @@ export function initializeDraggable(dotNetHelper) {
 
         e.preventDefault();
 
+        const containerRect = container.getBoundingClientRect();
         let clientX, clientY;
         
         if (e.type === 'touchmove') {
@@ -74,16 +78,14 @@ export function initializeDraggable(dotNetHelper) {
             clientY = e.clientY;
         }
 
-        // Calculate new position: mouse position - container position - click offset
-        const containerRect = container.getBoundingClientRect();
-        const newX = clientX - containerRect.left - offsetX;
-        const newY = clientY - containerRect.top - offsetY;
+        // Mouse position in container content coordinates
+        // = viewport position - container viewport position + scroll - offset from element edge
+        const newX = clientX - containerRect.left + container.scrollLeft - startX;
+        const newY = clientY - containerRect.top + container.scrollTop - startY;
 
-        // Apply position
         activeElement.style.left = newX + 'px';
         activeElement.style.top = newY + 'px';
 
-        // Update connected lines in real-time
         updateConnectedLines(activeElement);
     }
 

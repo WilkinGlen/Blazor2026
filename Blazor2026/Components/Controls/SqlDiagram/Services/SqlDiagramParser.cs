@@ -46,7 +46,6 @@ public static partial class SqlDiagramParser
             }
 
             var joinMatches = JoinRegex().Matches(sql);
-            var yOffset = 50;
 
             foreach (Match joinMatch in joinMatches)
             {
@@ -60,13 +59,17 @@ public static partial class SqlDiagramParser
 
                 if (!data.Tables.Any(t => t.Alias.Equals(alias, StringComparison.OrdinalIgnoreCase)))
                 {
-                    yOffset += 200;
+                    // Cascade tables with headers visible
+                    // Horizontal offset: 150px (50% of typical table width)
+                    // Vertical offset: 40px (approximate header height) so next table starts at bottom of previous header
+                    int tableIndex = data.Tables.Count;
+                    
                     data.Tables.Add(new TableInfo
                     {
                         Name = tableName,
                         Alias = alias,
-                        X = 50 + data.Tables.Count % 3 * 300,
-                        Y = yOffset
+                        X = 50 + tableIndex * 150,
+                        Y = 50 + tableIndex * 40
                     });
                     tableAliasMap[alias] = tableName;
                 }
