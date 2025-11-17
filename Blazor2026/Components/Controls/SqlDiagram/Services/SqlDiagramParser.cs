@@ -5,19 +5,26 @@ using Blazor2026.Models;
 
 public static partial class SqlDiagramParser
 {
-    [GeneratedRegex(@"\bFROM\s+(?:\[?[\w]+\]?\.\[?[\w]+\]?\.)?\[?(\w+)\]?(?:\s+AS\s+\[?([^\]]+)\]?)?", RegexOptions.IgnoreCase)]
+    // Matches FROM clause with optional schema/database/server prefixes
+    // Captures only the actual table name (the last identifier in the chain)
+    // Supports both simple aliases and multi-part bracketed aliases
+    [GeneratedRegex(@"\bFROM\s+(?:(?:\[?[\w]+\]?\.(?:\[?[\w]+\]?\.)?)*)?\[?(\w+)\]?(?:\s+AS\s+(?:\[([^\]]+)\]|(\w+)))?", RegexOptions.IgnoreCase)]
     private static partial Regex FromTableRegex();
 
-    [GeneratedRegex(@"\b(LEFT|RIGHT|INNER|FULL|CROSS)?\s*JOIN\s+(?:\[?[\w]+\]?\.\[?[\w]+\]?\.)?\[?(\w+)\]?(?:\s+AS\s+\[?([^\]]+)\]?)?\s+ON\s+\[?([^\]]+)\]?\s*\.\s*\[?(\w+)\]?\s*=\s*\[?([^\]]+)\]?\s*\.\s*\[?(\w+)\]?", RegexOptions.IgnoreCase)]
+    // Matches JOIN clause with optional OUTER keyword and schema/database/server prefixes
+    // Supports: INNER JOIN, LEFT JOIN, LEFT OUTER JOIN, RIGHT JOIN, RIGHT OUTER JOIN, FULL JOIN, FULL OUTER JOIN, CROSS JOIN
+    // Supports square brackets and multi-part identifiers in table aliases and ON clause
+    [GeneratedRegex(@"\b(LEFT|RIGHT|INNER|FULL|CROSS)?(?:\s+OUTER)?\s*JOIN\s+(?:(?:\[?[\w]+\]?\.(?:\[?[\w]+\]?\.)?)*)?\[?(\w+)\]?(?:\s+AS\s+(?:\[([^\]]+)\]|(\w+)))?\s+ON\s+(?:\[([^\]]+)\]|(\w+))\s*\.\s*\[?(\w+)\]?\s*=\s*(?:\[([^\]]+)\]|(\w+))\s*\.\s*\[?(\w+)\]?", RegexOptions.IgnoreCase)]
     private static partial Regex JoinRegex();
 
     [GeneratedRegex(@"SELECT\s+(.*?)\s+FROM", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex SelectColumnsRegex();
 
-    // Updated regex to properly handle multi-part identifiers in SELECT columns
-    // Matches: [table.alias].[column] AS [column alias]
-    // Or: table.[column] AS alias
-    [GeneratedRegex(@"\[([^\]]+)\]\s*\.\s*\[([^\]]+)\](?:\s+(?:AS\s+)?\[?([^\]]+)\]?)?", RegexOptions.IgnoreCase)]
+    // Updated regex to properly handle both bracketed and non-bracketed identifiers in SELECT columns
+    // Matches: [table.alias].[column] AS [column alias]  (bracketed)
+    // Or: table.column AS alias  (non-bracketed)
+    // Or: [table].[column] AS alias  (mixed)
+    [GeneratedRegex(@"(?:\[([^\]]+)\]|(\w+))\s*\.\s*(?:\[([^\]]+)\]|(\w+))(?:\s+(?:AS\s+)?(?:\[([^\]]+)\]|(\w+)))?", RegexOptions.IgnoreCase)]
     private static partial Regex QualifiedColumnRegex();
 
     public static SqlDiagramData ParseSql(string sql)
@@ -36,7 +43,9 @@ public static partial class SqlDiagramParser
             if (fromMatch.Success)
             {
                 var tableName = fromMatch.Groups[1].Value;
-                var alias = fromMatch.Groups[2].Success ? fromMatch.Groups[2].Value : tableName;
+                // Group 2: bracketed alias, Group 3: non-bracketed alias
+                var alias = !string.IsNullOrEmpty(fromMatch.Groups[2].Value) ? fromMatch.Groups[2].Value : 
+                           (!string.IsNullOrEmpty(fromMatch.Groups[3].Value) ? fromMatch.Groups[3].Value : tableName);
 
                 data.Tables.Add(new TableInfo
                 {
@@ -54,17 +63,18 @@ public static partial class SqlDiagramParser
             {
                 var joinType = joinMatch.Groups[1].Success ? joinMatch.Groups[1].Value : "INNER";
                 var tableName = joinMatch.Groups[2].Value;
-                var alias = joinMatch.Groups[3].Success ? joinMatch.Groups[3].Value : tableName;
-                var leftTableAlias = joinMatch.Groups[4].Value;
-                var leftColumn = joinMatch.Groups[5].Value;
-                var rightTableAlias = joinMatch.Groups[6].Value;
-                var rightColumn = joinMatch.Groups[7].Value;
+                // Group 3: bracketed alias, Group 4: non-bracketed alias
+                var alias = !string.IsNullOrEmpty(joinMatch.Groups[3].Value) ? joinMatch.Groups[3].Value : 
+                           (!string.IsNullOrEmpty(joinMatch.Groups[4].Value) ? joinMatch.Groups[4].Value : tableName);
+                // Group 5: bracketed left table, Group 6: non-bracketed left table
+                var leftTableAlias = !string.IsNullOrEmpty(joinMatch.Groups[5].Value) ? joinMatch.Groups[5].Value : joinMatch.Groups[6].Value;
+                var leftColumn = joinMatch.Groups[7].Value;
+                // Group 8: bracketed right table, Group 9: non-bracketed right table
+                var rightTableAlias = !string.IsNullOrEmpty(joinMatch.Groups[8].Value) ? joinMatch.Groups[8].Value : joinMatch.Groups[9].Value;
+                var rightColumn = joinMatch.Groups[10].Value;
 
                 if (!data.Tables.Any(t => t.Alias.Equals(alias, StringComparison.OrdinalIgnoreCase)))
                 {
-                    // Cascade tables with headers visible
-                    // Horizontal offset: 150px (50% of typical table width)
-                    // Vertical offset: 40px (approximate header height) so next table starts at bottom of previous header
                     var tableIndex = data.Tables.Count;
 
                     data.Tables.Add(new TableInfo
@@ -94,9 +104,13 @@ public static partial class SqlDiagramParser
                 var qualifiedMatches = QualifiedColumnRegex().Matches(columnsText);
                 foreach (Match colMatch in qualifiedMatches)
                 {
-                    var tableAlias = colMatch.Groups[1].Value;
-                    var columnName = colMatch.Groups[2].Value;
-                    var columnAlias = colMatch.Groups[3].Success ? colMatch.Groups[3].Value : null;
+                    // Group 1: bracketed table alias, Group 2: non-bracketed table alias
+                    var tableAlias = !string.IsNullOrEmpty(colMatch.Groups[1].Value) ? colMatch.Groups[1].Value : colMatch.Groups[2].Value;
+                    // Group 3: bracketed column name, Group 4: non-bracketed column name
+                    var columnName = !string.IsNullOrEmpty(colMatch.Groups[3].Value) ? colMatch.Groups[3].Value : colMatch.Groups[4].Value;
+                    // Group 5: bracketed column alias, Group 6: non-bracketed column alias
+                    var columnAlias = !string.IsNullOrEmpty(colMatch.Groups[5].Value) ? colMatch.Groups[5].Value : 
+                                     (!string.IsNullOrEmpty(colMatch.Groups[6].Value) ? colMatch.Groups[6].Value : null);
 
                     var table = data.Tables.FirstOrDefault(t =>
                         t.Alias.Equals(tableAlias, StringComparison.OrdinalIgnoreCase));

@@ -595,4 +595,219 @@ public class ParseSql_Should
         var customersTable = result.Tables.First(t => t.Alias == "c");
         _ = customersTable.Columns.Should().Contain(c => c.Name == "CustomerName");
     }
+
+    [Fact]
+    public void ParseMultiPartBracketedTableAliases()
+    {
+        var sql = @"SELECT 
+                        [Database.Schema.Table1].[Column1] AS [Col1],
+                        [Database.Schema.Table2].[Column2] AS [Col2]
+                    FROM [Database].[Schema].[Table1] AS [Database.Schema.Table1]
+                    INNER JOIN [Database].[Schema].[Table2] AS [Database.Schema.Table2]
+                        ON [Database.Schema.Table1].[Id] = [Database.Schema.Table2].[Table1Id]";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(2);
+        _ = result.Tables[0].Name.Should().Be("Table1");
+        _ = result.Tables[0].Alias.Should().Be("Database.Schema.Table1");
+        _ = result.Tables[1].Name.Should().Be("Table2");
+        _ = result.Tables[1].Alias.Should().Be("Database.Schema.Table2");
+
+        _ = result.Joins.Should().HaveCount(1);
+        _ = result.Joins[0].FromTable.Should().Be("Database.Schema.Table1");
+        _ = result.Joins[0].ToTable.Should().Be("Database.Schema.Table2");
+
+        var table1 = result.Tables.First(t => t.Alias == "Database.Schema.Table1");
+        _ = table1.Columns.Should().Contain(c => c.Name == "Column1" && c.Alias == "Col1");
+        _ = table1.Columns.Should().Contain(c => c.Name == "Id");
+
+        var table2 = result.Tables.First(t => t.Alias == "Database.Schema.Table2");
+        _ = table2.Columns.Should().Contain(c => c.Name == "Column2" && c.Alias == "Col2");
+        _ = table2.Columns.Should().Contain(c => c.Name == "Table1Id");
+    }
+
+    [Fact]
+    public void ParseBracketedColumnsWithSpacesInAliases()
+    {
+        var sql = @"SELECT 
+                        [ApiSelfService.dbo.PrototypeApis].[Name] AS [PrototypeApis Name],
+                        [ApiSelfService.dbo.PrototypeApis].[Description] AS [PrototypeApis Description]
+                    FROM [ApiSelfService].[dbo].[PrototypeApis] AS [ApiSelfService.dbo.PrototypeApis]";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(1);
+        _ = result.Tables[0].Name.Should().Be("PrototypeApis");
+        _ = result.Tables[0].Alias.Should().Be("ApiSelfService.dbo.PrototypeApis");
+
+        var table = result.Tables[0];
+        _ = table.Columns.Should().HaveCount(2);
+        _ = table.Columns.Should().Contain(c => c.Name == "Name" && c.Alias == "PrototypeApis Name");
+        _ = table.Columns.Should().Contain(c => c.Name == "Description" && c.Alias == "PrototypeApis Description");
+        _ = table.SelectedColumns.Should().Contain("Name");
+        _ = table.SelectedColumns.Should().Contain("Description");
+    }
+
+    [Fact]
+    public void ParseComplexMultiPartAliasQuery()
+    {
+        var sql = @"SELECT 
+                        [ApiSelfService.dbo.PrototypeApis].[Name] AS [PrototypeApis Name],
+                        [ApiSelfService.dbo.PrototypeApis].[Description] AS [PrototypeApis Description],
+                        [ApiSelfService.dbo.PrototypeNotes].[Note] AS [PrototypeNotes Note],
+                        [CacheCore.dbo.RdrDetails].[rdr_wdw_lgon_id] AS [RdrDetails StandardId]
+                    FROM [ApiSelfService].[dbo].[PrototypeApis] AS [ApiSelfService.dbo.PrototypeApis]
+                    LEFT JOIN [ApiSelfService].[dbo].[PrototypeNotes] AS [ApiSelfService.dbo.PrototypeNotes]
+                        ON [ApiSelfService.dbo.PrototypeApis].[Id] = [ApiSelfService.dbo.PrototypeNotes].[PrototypeApiId]
+                    LEFT JOIN [CacheCore].[dbo].[RdrDetails] AS [CacheCore.dbo.RdrDetails]
+                        ON [CacheCore.dbo.RdrDetails].[rdr_wdw_lgon_id] = [ApiSelfService.dbo.PrototypeNotes].[CreatedBy]";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(3);
+        _ = result.Tables.Should().Contain(t => t.Alias == "ApiSelfService.dbo.PrototypeApis");
+        _ = result.Tables.Should().Contain(t => t.Alias == "ApiSelfService.dbo.PrototypeNotes");
+        _ = result.Tables.Should().Contain(t => t.Alias == "CacheCore.dbo.RdrDetails");
+
+        _ = result.Joins.Should().HaveCount(2);
+        _ = result.Joins[0].JoinType.Should().Be("LEFT");
+        _ = result.Joins[0].FromTable.Should().Be("ApiSelfService.dbo.PrototypeApis");
+        _ = result.Joins[0].FromColumn.Should().Be("Id");
+        _ = result.Joins[0].ToTable.Should().Be("ApiSelfService.dbo.PrototypeNotes");
+        _ = result.Joins[0].ToColumn.Should().Be("PrototypeApiId");
+
+        _ = result.Joins[1].JoinType.Should().Be("LEFT");
+        _ = result.Joins[1].FromTable.Should().Be("CacheCore.dbo.RdrDetails");
+        _ = result.Joins[1].FromColumn.Should().Be("rdr_wdw_lgon_id");
+        _ = result.Joins[1].ToTable.Should().Be("ApiSelfService.dbo.PrototypeNotes");
+        _ = result.Joins[1].ToColumn.Should().Be("CreatedBy");
+
+        var prototypeApisTable = result.Tables.First(t => t.Alias == "ApiSelfService.dbo.PrototypeApis");
+        _ = prototypeApisTable.Columns.Should().Contain(c => c.Name == "Name" && c.Alias == "PrototypeApis Name");
+        _ = prototypeApisTable.Columns.Should().Contain(c => c.Name == "Description" && c.Alias == "PrototypeApis Description");
+        _ = prototypeApisTable.Columns.Should().Contain(c => c.Name == "Id");
+
+        var prototypeNotesTable = result.Tables.First(t => t.Alias == "ApiSelfService.dbo.PrototypeNotes");
+        _ = prototypeNotesTable.Columns.Should().Contain(c => c.Name == "Note" && c.Alias == "PrototypeNotes Note");
+        _ = prototypeNotesTable.Columns.Should().Contain(c => c.Name == "PrototypeApiId");
+        _ = prototypeNotesTable.Columns.Should().Contain(c => c.Name == "CreatedBy");
+
+        var rdrDetailsTable = result.Tables.First(t => t.Alias == "CacheCore.dbo.RdrDetails");
+        _ = rdrDetailsTable.Columns.Should().Contain(c => c.Name == "rdr_wdw_lgon_id" && c.Alias == "RdrDetails StandardId");
+    }
+
+    [Fact]
+    public void ParseBracketedColumnsWithUnderscores()
+    {
+        var sql = @"SELECT 
+                        [Schema.Table].[column_with_underscores] AS [Column Alias],
+                        [Schema.Table].[another_column] AS [Another Column]
+                    FROM [Database].[Schema].[Table] AS [Schema.Table]";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(1);
+        var table = result.Tables[0];
+        _ = table.Columns.Should().Contain(c => c.Name == "column_with_underscores" && c.Alias == "Column Alias");
+        _ = table.Columns.Should().Contain(c => c.Name == "another_column" && c.Alias == "Another Column");
+    }
+
+    [Fact]
+    public void ParseMixedBracketedAndNonBracketedAliases()
+    {
+        var sql = @"SELECT 
+                        [Schema.Table1].[Column1] AS [Col 1],
+                        t2.Column2 AS Col2
+                    FROM [Database].[Schema].[Table1] AS [Schema.Table1]
+                    INNER JOIN [Database].[Schema].[Table2] AS t2
+                        ON [Schema.Table1].[Id] = t2.[Table1Id]";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(2);
+        _ = result.Tables[0].Alias.Should().Be("Schema.Table1");
+        _ = result.Tables[1].Alias.Should().Be("t2");
+
+        var table1 = result.Tables.First(t => t.Alias == "Schema.Table1");
+        _ = table1.Columns.Should().Contain(c => c.Name == "Column1" && c.Alias == "Col 1");
+    }
+
+    [Fact]
+    public void ParseDuplicateColumnsInBracketedFormat()
+    {
+        var sql = @"SELECT 
+                        [Schema.Table].[Column1] AS [Alias1],
+                        [Schema.Table].[Column1] AS [Alias2]
+                    FROM [Database].[Schema].[Table] AS [Schema.Table]";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        var table = result.Tables[0];
+        _ = table.Columns.Should().HaveCount(1);
+        _ = table.SelectedColumns.Should().HaveCount(1);
+        _ = table.Columns[0].Name.Should().Be("Column1");
+    }
+
+    [Fact]
+    public void ParseBracketedAliasesInJoinConditions()
+    {
+        var sql = @"SELECT *
+                    FROM [DB1.Schema1.Table1] AS [DB1.Schema1.Table1]
+                    INNER JOIN [DB2.Schema2.Table2] AS [DB2.Schema2.Table2]
+                        ON [DB1.Schema1.Table1].[JoinKey] = [DB2.Schema2.Table2].[JoinKey]";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Joins.Should().HaveCount(1);
+        _ = result.Joins[0].FromTable.Should().Be("DB1.Schema1.Table1");
+        _ = result.Joins[0].ToTable.Should().Be("DB2.Schema2.Table2");
+        _ = result.Joins[0].FromColumn.Should().Be("JoinKey");
+        _ = result.Joins[0].ToColumn.Should().Be("JoinKey");
+    }
+
+    [Fact]
+    public void ParseMultipleBracketedColumnsFromSameTable()
+    {
+        var sql = @"SELECT 
+                        [Api.dbo.Table].[Col1] AS [Column 1],
+                        [Api.dbo.Table].[Col2] AS [Column 2],
+                        [Api.dbo.Table].[Col3] AS [Column 3],
+                        [Api.dbo.Table].[Col4] AS [Column 4]
+                    FROM [ApiDb].[dbo].[Table] AS [Api.dbo.Table]";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        var table = result.Tables[0];
+        _ = table.Columns.Should().HaveCount(4);
+        _ = table.SelectedColumns.Should().HaveCount(4);
+        _ = table.Columns.Should().Contain(c => c.Name == "Col1" && c.Alias == "Column 1");
+        _ = table.Columns.Should().Contain(c => c.Name == "Col2" && c.Alias == "Column 2");
+        _ = table.Columns.Should().Contain(c => c.Name == "Col3" && c.Alias == "Column 3");
+        _ = table.Columns.Should().Contain(c => c.Name == "Col4" && c.Alias == "Column 4");
+    }
+
+    [Fact]
+    public void ParseBracketedAliasesWithMultipleJoins()
+    {
+        var sql = @"SELECT 
+                        [T1].[Col1],
+                        [T2].[Col2],
+                        [T3].[Col3]
+                    FROM [DB].[Schema].[Table1] AS [T1]
+                    INNER JOIN [DB].[Schema].[Table2] AS [T2]
+                        ON [T1].[Id] = [T2].[T1Id]
+                    LEFT JOIN [DB].[Schema].[Table3] AS [T3]
+                        ON [T2].[Id] = [T3].[T2Id]";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(3);
+        _ = result.Joins.Should().HaveCount(2);
+
+        _ = result.Joins[0].FromTable.Should().Be("T1");
+        _ = result.Joins[0].ToTable.Should().Be("T2");
+        _ = result.Joins[1].FromTable.Should().Be("T2");
+        _ = result.Joins[1].ToTable.Should().Be("T3");
+    }
 }
