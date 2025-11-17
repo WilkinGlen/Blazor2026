@@ -810,4 +810,171 @@ public class ParseSql_Should
         _ = result.Joins[1].FromTable.Should().Be("T2");
         _ = result.Joins[1].ToTable.Should().Be("T3");
     }
+
+    [Fact]
+    public void ParseFromTable_WithAliasWithoutAS()
+    {
+        var sql = "SELECT o.OrderId FROM Orders o";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(1);
+        _ = result.Tables[0].Name.Should().Be("Orders");
+        _ = result.Tables[0].Alias.Should().Be("o");
+    }
+
+    [Fact]
+    public void ParseFromTable_WithServerDatabaseSchema()
+    {
+        var sql = "SELECT * FROM [Server].[Database].[Schema].[Table] AS t";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(1);
+        _ = result.Tables[0].Name.Should().Be("Table");
+        _ = result.Tables[0].Alias.Should().Be("t");
+    }
+
+    [Fact]
+    public void ParseSelectColumns_WithKeywordInAlias()
+    {
+        var sql = @"SELECT o.OrderId AS [OrderNum], c.CustomerName AS [CustomerInfo] 
+                    FROM Orders AS o 
+                    INNER JOIN Customers AS c ON o.CustomerId = c.Id";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        var ordersTable = result.Tables.First(t => t.Alias == "o");
+        _ = ordersTable.Columns.Should().Contain(c => c.Name == "OrderId" && c.Alias == "OrderNum");
+
+        var customersTable = result.Tables.First(t => t.Alias == "c");
+        _ = customersTable.Columns.Should().Contain(c => c.Name == "CustomerName" && c.Alias == "CustomerInfo");
+    }
+
+    [Fact]
+    public void ParseMultipleJoinsToSameTableWithDifferentAliases()
+    {
+        var sql = @"SELECT * FROM Orders AS o 
+                    LEFT JOIN Customers AS billTo ON o.BillingCustomerId = billTo.Id
+                    LEFT JOIN Customers AS shipTo ON o.ShippingCustomerId = shipTo.Id";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(3);
+        _ = result.Tables.Count(t => t.Name == "Customers").Should().Be(2);
+        _ = result.Tables.Should().Contain(t => t.Alias == "billTo");
+        _ = result.Tables.Should().Contain(t => t.Alias == "shipTo");
+
+        _ = result.Joins.Should().HaveCount(2);
+    }
+
+    [Fact]
+    public void ParseColumnsWithNumbers()
+    {
+        var sql = @"SELECT o.order1_id, o.field2, c.customer3name 
+                    FROM Orders AS o 
+                    INNER JOIN Customers AS c ON o.customer_id = c.id";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        var ordersTable = result.Tables.First(t => t.Alias == "o");
+        _ = ordersTable.Columns.Should().Contain(c => c.Name == "order1_id");
+        _ = ordersTable.Columns.Should().Contain(c => c.Name == "field2");
+    }
+
+    [Fact]
+    public void ParseVeryLongMultiPartAlias()
+    {
+        var sql = @"SELECT [Server.Database.Schema.VeryLongTableNameHere].[ColumnName] AS [Alias]
+                    FROM [Server].[Database].[Schema].[VeryLongTableNameHere] AS [Server.Database.Schema.VeryLongTableNameHere]";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(1);
+        _ = result.Tables[0].Alias.Should().Be("Server.Database.Schema.VeryLongTableNameHere");
+        _ = result.Tables[0].Columns.Should().Contain(c => c.Name == "ColumnName");
+    }
+
+    [Fact]
+    public void ParseQueryWithWhereClause()
+    {
+        var sql = @"SELECT o.OrderId, c.CustomerName 
+                    FROM Orders AS o 
+                    INNER JOIN Customers AS c ON o.CustomerId = c.Id
+                    WHERE o.Status = 'Active' AND c.Region = 'US'";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(2);
+        _ = result.Joins.Should().HaveCount(1);
+        var ordersTable = result.Tables.First(t => t.Alias == "o");
+        _ = ordersTable.Columns.Should().Contain(c => c.Name == "OrderId");
+    }
+
+    [Fact]
+    public void ParseQueryWithGroupByAndOrderBy()
+    {
+        var sql = @"SELECT o.CustomerId, COUNT(o.OrderId) AS OrderCount
+                    FROM Orders AS o 
+                    GROUP BY o.CustomerId
+                    ORDER BY OrderCount DESC";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(1);
+        var ordersTable = result.Tables.First(t => t.Alias == "o");
+        _ = ordersTable.Columns.Should().Contain(c => c.Name == "CustomerId");
+    }
+
+    [Fact]
+    public void ParseCrossJoinWithoutOnClause()
+    {
+        var sql = @"SELECT * FROM Orders AS o 
+                    CROSS JOIN Customers AS c";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(1);
+        _ = result.Tables[0].Alias.Should().Be("o");
+        _ = result.Joins.Should().BeEmpty();
+    }
+
+    [Fact]
+    public void HandleEmptyTableAlias()
+    {
+        var sql = "SELECT OrderId FROM Orders AS ";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Should().NotBeNull();
+        _ = result.Tables.Should().HaveCount(1);
+        _ = result.Tables[0].Name.Should().Be("Orders");
+    }
+
+    [Fact]
+    public void ParseSelectWithNestedParentheses()
+    {
+        var sql = @"SELECT ISNULL(NULLIF(o.OrderId, 0), -1) AS OrderNum, c.CustomerName
+                    FROM Orders AS o 
+                    INNER JOIN Customers AS c ON o.CustomerId = c.Id";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(2);
+        var customersTable = result.Tables.First(t => t.Alias == "c");
+        _ = customersTable.Columns.Should().Contain(c => c.Name == "CustomerName");
+    }
+
+    [Fact]
+    public void ParseWithMixedCaseKeywords()
+    {
+        var sql = @"SeLeCt o.OrderId, c.CustomerName 
+                    FrOm Orders aS o 
+                    InNeR jOiN Customers As c On o.CustomerId = c.Id";
+
+        var result = SqlDiagramParser.ParseSql(sql);
+
+        _ = result.Tables.Should().HaveCount(2);
+        _ = result.Joins.Should().HaveCount(1);
+    }
 }

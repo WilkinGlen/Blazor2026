@@ -7,14 +7,15 @@ public static partial class SqlDiagramParser
 {
     // Matches FROM clause with optional schema/database/server prefixes
     // Captures only the actual table name (the last identifier in the chain)
-    // Supports both simple aliases and multi-part bracketed aliases
-    [GeneratedRegex(@"\bFROM\s+(?:(?:\[?[\w]+\]?\.(?:\[?[\w]+\]?\.)?)*)?\[?(\w+)\]?(?:\s+AS\s+(?:\[([^\]]+)\]|(\w+)))?", RegexOptions.IgnoreCase)]
+    // Supports both simple aliases (with or without AS) and multi-part bracketed aliases
+    [GeneratedRegex(@"\bFROM\s+(?:(?:\[?[\w]+\]?\.(?:\[?[\w]+\]?\.)?)*)?\[?(\w+)\]?(?:\s+(?:AS\s+)?(?:\[([^\]]+)\]|(\w+)))?", RegexOptions.IgnoreCase)]
     private static partial Regex FromTableRegex();
 
     // Matches JOIN clause with optional OUTER keyword and schema/database/server prefixes
     // Supports: INNER JOIN, LEFT JOIN, LEFT OUTER JOIN, RIGHT JOIN, RIGHT OUTER JOIN, FULL JOIN, FULL OUTER JOIN, CROSS JOIN
     // Supports square brackets and multi-part identifiers in table aliases and ON clause
-    [GeneratedRegex(@"\b(LEFT|RIGHT|INNER|FULL|CROSS)?(?:\s+OUTER)?\s*JOIN\s+(?:(?:\[?[\w]+\]?\.(?:\[?[\w]+\]?\.)?)*)?\[?(\w+)\]?(?:\s+AS\s+(?:\[([^\]]+)\]|(\w+)))?\s+ON\s+(?:\[([^\]]+)\]|(\w+))\s*\.\s*\[?(\w+)\]?\s*=\s*(?:\[([^\]]+)\]|(\w+))\s*\.\s*\[?(\w+)\]?", RegexOptions.IgnoreCase)]
+    // AS keyword is optional for table aliases
+    [GeneratedRegex(@"\b(LEFT|RIGHT|INNER|FULL|CROSS)?(?:\s+OUTER)?\s*JOIN\s+(?:(?:\[?[\w]+\]?\.(?:\[?[\w]+\]?\.)?)*)?\[?(\w+)\]?(?:\s+(?:AS\s+)?(?:\[([^\]]+)\]|(\w+)))?\s+ON\s+(?:\[([^\]]+)\]|(\w+))\s*\.\s*\[?(\w+)\]?\s*=\s*(?:\[([^\]]+)\]|(\w+))\s*\.\s*\[?(\w+)\]?", RegexOptions.IgnoreCase)]
     private static partial Regex JoinRegex();
 
     [GeneratedRegex(@"SELECT\s+(.*?)\s+FROM", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
