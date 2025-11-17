@@ -14,7 +14,10 @@ public static partial class SqlDiagramParser
     [GeneratedRegex(@"SELECT\s+(.*?)\s+FROM", RegexOptions.IgnoreCase | RegexOptions.Singleline)]
     private static partial Regex SelectColumnsRegex();
 
-    [GeneratedRegex(@"\[?([^\]]+)\]?\s*\.\s*\[?(\w+)\]?(?:\s+(?:AS\s+)?\[?([^\]]+)\]?)?", RegexOptions.IgnoreCase)]
+    // Updated regex to properly handle multi-part identifiers in SELECT columns
+    // Matches: [table.alias].[column] AS [column alias]
+    // Or: table.[column] AS alias
+    [GeneratedRegex(@"\[([^\]]+)\]\s*\.\s*\[([^\]]+)\](?:\s+(?:AS\s+)?\[?([^\]]+)\]?)?", RegexOptions.IgnoreCase)]
     private static partial Regex QualifiedColumnRegex();
 
     public static SqlDiagramData ParseSql(string sql)
