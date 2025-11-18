@@ -1,6 +1,7 @@
 @inherits LayoutComponentBase
+@using MudBlazor
 
-<MudThemeProvider />
+<MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="@_theme" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
@@ -9,9 +10,10 @@
     <header class="zoom-control-header">
         <div class="header-content">
             <ZoomControl />
-            <MudTooltip Text="">
-                <MudIconButton Icon="@Icons.Material.Filled.LightMode" 
-                    Color="Color.Primary" />
+            <MudTooltip Text="@(_isDarkMode ? "Switch to Light Mode" : "Switch to Dark Mode")">
+                <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.DarkMode : Icons.Material.Filled.LightMode)" 
+                    Color="Color.Primary" 
+                    OnClick="@ToggleTheme" />
             </MudTooltip>
         </div>
     </header>

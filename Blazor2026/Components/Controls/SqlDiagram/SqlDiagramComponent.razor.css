@@ -7,13 +7,14 @@
 
 .table-box {
     position: absolute;
-    background: white;
-    border: 2px solid #1976d2;
+    background: var(--mud-palette-surface, white);
+    border: 2px solid var(--mud-palette-primary, #1976d2);
     border-radius: 8px;
     min-width: 300px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
     z-index: 10;
-    transition: box-shadow 0.2s ease;
+    transition: box-shadow 0.2s ease, background-color 0.3s ease, border-color 0.3s ease;
+    cursor: grab;
 }
 
 .table-box:hover {
@@ -26,14 +27,15 @@
 }
 
 .table-header {
-    background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--mud-palette-primary, #1976d2) 0%, #1565c0 100%);
+    color: var(--mud-palette-primary-text, white);
     padding: 6px 16px;
     font-weight: bold;
     border-radius: 6px 6px 0 0;
     display: flex;
     align-items: center;
     cursor: grab;
+    transition: background 0.3s ease, color 0.3s ease;
 }
 
 .table-header:active {
@@ -49,16 +51,18 @@
 
 .table-columns {
     padding: 8px;
-    background: white;
+    background: var(--mud-palette-surface, white);
+    transition: background-color 0.3s ease;
 }
 
 .column-row {
     padding: 6px 8px;
-    border-bottom: 1px solid #e0e0e0;
+    border-bottom: 1px solid var(--mud-palette-divider, #e0e0e0);
     display: flex;
     align-items: center;
     font-size: 0.95em;
-    transition: background-color 0.2s ease;
+    color: var(--mud-palette-text-primary, #000);
+    transition: background-color 0.2s ease, border-color 0.3s ease, color 0.3s ease;
 }
 
 .column-row:last-child {
@@ -66,7 +70,7 @@
 }
 
 .column-row:hover {
-    background-color: #f5f5f5;
+    background-color: var(--mud-palette-action-default-hover, rgba(0, 0, 0, 0.04));
 }
 
 .column-alias {
@@ -77,30 +81,70 @@
     font-style: italic;
 }
 
-/* Dark mode support */
-html[data-mud-theme="dark"] .table-box {
-    background: #1e1e1e;
-    border-color: #90caf9;
+/* Dark mode specific styles */
+@media (prefers-color-scheme: dark) {
+    .table-box {
+        border-color: #0d47a1;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+    }
+
+    .table-box:hover {
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
+    }
+
+    .table-box:active {
+        box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
+    }
+
+    .table-header {
+        background: linear-gradient(135deg, #0d47a1 0%, #01579b 100%);
+    }
+
+    .column-row:hover {
+        background-color: rgba(255, 255, 255, 0.08);
+    }
 }
 
-html[data-mud-theme="dark"] .table-columns {
-    background: #1e1e1e;
+/* MudBlazor dark mode override - using :global() for scoped CSS */
+:global(.mud-theme-dark) .table-box {
+    border-color: #0d47a1;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
-html[data-mud-theme="dark"] .column-row {
-    border-bottom-color: #424242;
+:global(.mud-theme-dark) .table-box:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
 }
 
-html[data-mud-theme="dark"] .column-row:hover {
-    background-color: #2a2a2a;
+:global(.mud-theme-dark) .table-box:active {
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
 }
 
-/* Keyboard shortcut hint animation */
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
+:global(.mud-theme-dark) .table-header {
+    background: linear-gradient(135deg, #0d47a1 0%, #01579b 100%);
 }
 
-.keyboard-hint {
-    animation: pulse 2s ease-in-out infinite;
+:global(.mud-theme-dark) .column-row:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+/* Accessibility improvements */
+@media (prefers-reduced-motion: reduce) {
+    .table-box,
+    .table-header,
+    .table-columns,
+    .column-row {
+        transition: none;
+    }
+}
+
+/* Focus styles for keyboard navigation */
+.table-box:focus-visible {
+    outline: 2px solid var(--mud-palette-primary, #1976d2);
+    outline-offset: 2px;
+}
+
+.column-row:focus-visible {
+    outline: 2px solid var(--mud-palette-primary, #1976d2);
+    outline-offset: -2px;
+    background-color: var(--mud-palette-action-default-hover, rgba(0, 0, 0, 0.04));
 }
