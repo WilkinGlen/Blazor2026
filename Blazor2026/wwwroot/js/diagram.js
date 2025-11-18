@@ -15,45 +15,6 @@ function getTableDimensions(tableElement, zoomScale) {
     };
 }
 
-function getEdgePoint(boxX, boxY, boxWidth, boxHeight, centerX, centerY, targetX, targetY) {
-    // Calculate direction from center to target
-    let dx = targetX - centerX;
-    let dy = targetY - centerY;
-    
-    // Normalize
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    if (distance === 0) {
-        return { x: centerX, y: centerY };
-    }
-    
-    dx /= distance;
-    dy /= distance;
-    
-    // Calculate intersection with box edges
-    const halfWidth = boxWidth / 2;
-    const halfHeight = boxHeight / 2;
-    const margin = 2;
-    
-    // Calculate where the ray intersects each edge
-    const tRight = dx !== 0 ? (halfWidth - margin) / dx : Infinity;
-    const tLeft = dx !== 0 ? -(halfWidth - margin) / dx : Infinity;
-    const tBottom = dy !== 0 ? (halfHeight - margin) / dy : Infinity;
-    const tTop = dy !== 0 ? -(halfHeight - margin) / dy : Infinity;
-    
-    // Find the smallest positive t value (closest intersection in the direction we're going)
-    let t = Infinity;
-    if (tRight > 0 && tRight < t && dx > 0) t = tRight;
-    if (tLeft > 0 && tLeft < t && dx < 0) t = tLeft;
-    if (tBottom > 0 && tBottom < t && dy > 0) t = tBottom;
-    if (tTop > 0 && tTop < t && dy < 0) t = tTop;
-    
-    // Calculate the intersection point
-    const x = Math.max(boxX + margin, Math.min(boxX + boxWidth - margin, centerX + t * dx));
-    const y = Math.max(boxY + margin, Math.min(boxY + boxHeight - margin, centerY + t * dy));
-    
-    return { x, y };
-}
-
 function getTablePositionAndDimensions(tableElement, zoomScale) {
     const x = parseInt(tableElement.style.left) || 0;
     const y = parseInt(tableElement.style.top) || 0;
@@ -69,9 +30,98 @@ function getTablePositionAndDimensions(tableElement, zoomScale) {
     };
 }
 
-function updateLinesBetweenTables(line, container, zoomScale) {
-    const fromTable = line.getAttribute('data-from-table');
-    const toTable = line.getAttribute('data-to-table');
+function getConnectionPoint(box, side) {
+    const margin = 2;
+    switch (side) {
+        case 'top':
+            return { x: box.centerX, y: box.y + margin };
+        case 'bottom':
+            return { x: box.centerX, y: box.y + box.height - margin };
+        case 'left':
+            return { x: box.x + margin, y: box.centerY };
+        case 'right':
+            return { x: box.x + box.width - margin, y: box.centerY };
+        default:
+            return { x: box.centerX, y: box.centerY };
+    }
+}
+
+function getBestSides(fromBox, toBox) {
+    // Determine which sides of the boxes should be connected
+    // based on their relative positions
+    
+    const dx = toBox.centerX - fromBox.centerX;
+    const dy = toBox.centerY - fromBox.centerY;
+    
+    let fromSide, toSide;
+    
+    // Determine horizontal relationship
+    if (Math.abs(dx) > Math.abs(dy)) {
+        // Primarily horizontal relationship
+        if (dx > 0) {
+            fromSide = 'right';
+            toSide = 'left';
+        } else {
+            fromSide = 'left';
+            toSide = 'right';
+        }
+    } else {
+        // Primarily vertical relationship
+        if (dy > 0) {
+            fromSide = 'bottom';
+            toSide = 'top';
+        } else {
+            fromSide = 'top';
+            toSide = 'bottom';
+        }
+    }
+    
+    return { fromSide, toSide };
+}
+
+function createOrthogonalPath(fromBox, toBox) {
+    const { fromSide, toSide } = getBestSides(fromBox, toBox);
+    const start = getConnectionPoint(fromBox, fromSide);
+    const end = getConnectionPoint(toBox, toSide);
+    
+    const points = [start];
+    const routeOffset = 30; // Distance to route away from boxes
+    
+    // Create orthogonal path based on which sides we're connecting
+    if ((fromSide === 'right' && toSide === 'left') || (fromSide === 'left' && toSide === 'right')) {
+        // Horizontal connection
+        const midX = (start.x + end.x) / 2;
+        points.push({ x: midX, y: start.y });
+        points.push({ x: midX, y: end.y });
+    } else if ((fromSide === 'bottom' && toSide === 'top') || (fromSide === 'top' && toSide === 'bottom')) {
+        // Vertical connection
+        const midY = (start.y + end.y) / 2;
+        points.push({ x: start.x, y: midY });
+        points.push({ x: end.x, y: midY });
+    } else {
+        // Mixed connection (e.g., right to top, bottom to left, etc.)
+        if (fromSide === 'right' || fromSide === 'left') {
+            // Start horizontally
+            const offsetX = fromSide === 'right' ? start.x + routeOffset : start.x - routeOffset;
+            points.push({ x: offsetX, y: start.y });
+            points.push({ x: offsetX, y: end.y });
+        } else {
+            // Start vertically
+            const offsetY = fromSide === 'bottom' ? start.y + routeOffset : start.y - routeOffset;
+            points.push({ x: start.x, y: offsetY });
+            points.push({ x: end.x, y: offsetY });
+        }
+    }
+    
+    points.push(end);
+    
+    // Convert points to SVG polyline format
+    return points.map(p => `${p.x},${p.y}`).join(' ');
+}
+
+function updateLinesBetweenTables(polyline, container, zoomScale) {
+    const fromTable = polyline.getAttribute('data-from-table');
+    const toTable = polyline.getAttribute('data-to-table');
     
     const fromTableElement = container.querySelector(`[data-table-id="${fromTable}"]`);
     const toTableElement = container.querySelector(`[data-table-id="${toTable}"]`);
@@ -81,16 +131,10 @@ function updateLinesBetweenTables(line, container, zoomScale) {
     const fromPos = getTablePositionAndDimensions(fromTableElement, zoomScale);
     const toPos = getTablePositionAndDimensions(toTableElement, zoomScale);
     
-    const fromEdge = getEdgePoint(fromPos.x, fromPos.y, fromPos.width, fromPos.height, 
-                                   fromPos.centerX, fromPos.centerY, toPos.centerX, toPos.centerY);
-    const toEdge = getEdgePoint(toPos.x, toPos.y, toPos.width, toPos.height, 
-                                 toPos.centerX, toPos.centerY, fromPos.centerX, fromPos.centerY);
+    const pathPoints = createOrthogonalPath(fromPos, toPos);
     
-    line.setAttribute('x1', fromEdge.x);
-    line.setAttribute('y1', fromEdge.y);
-    line.setAttribute('x2', toEdge.x);
-    line.setAttribute('y2', toEdge.y);
-    line.style.opacity = '1';
+    polyline.setAttribute('points', pathPoints);
+    polyline.style.opacity = '1';
 }
 
 export function initializeDraggable(dotNetHelper) {
@@ -211,14 +255,14 @@ export function initializeDraggable(dotNetHelper) {
         if (!svg) return;
 
         const zoomScale = getZoomScale(container);
-        const lines = svg.querySelectorAll('line');
+        const polylines = svg.querySelectorAll('polyline');
         
-        lines.forEach(line => {
-            const fromTable = line.getAttribute('data-from-table');
-            const toTable = line.getAttribute('data-to-table');
+        polylines.forEach(polyline => {
+            const fromTable = polyline.getAttribute('data-from-table');
+            const toTable = polyline.getAttribute('data-to-table');
 
             if (fromTable === tableId || toTable === tableId) {
-                updateLinesBetweenTables(line, container, zoomScale);
+                updateLinesBetweenTables(polyline, container, zoomScale);
             }
         });
     }
@@ -243,10 +287,10 @@ export function updateAllLines() {
     if (!svg) return;
 
     const zoomScale = getZoomScale(container);
-    const lines = svg.querySelectorAll('line');
+    const polylines = svg.querySelectorAll('polyline');
     
-    lines.forEach(line => {
-        updateLinesBetweenTables(line, container, zoomScale);
-        line.style.transition = 'opacity 0.3s ease';
+    polylines.forEach(polyline => {
+        updateLinesBetweenTables(polyline, container, zoomScale);
+        polyline.style.transition = 'opacity 0.3s ease';
     });
 }

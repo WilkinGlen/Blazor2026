@@ -106,24 +106,24 @@
 }
 
 /* MudBlazor dark mode override - using :global() for scoped CSS */
-:global(.mud-theme-dark) .table-box {
+.mud-theme-dark .table-box {
     border-color: #0d47a1;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
 }
 
-:global(.mud-theme-dark) .table-box:hover {
+.mud-theme-dark .table-box:hover {
     box-shadow: 0 6px 12px rgba(0, 0, 0, 0.5);
 }
 
-:global(.mud-theme-dark) .table-box:active {
+.mud-theme-dark .table-box:active {
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.6);
 }
 
-:global(.mud-theme-dark) .table-header {
+.mud-theme-dark .table-header {
     background: linear-gradient(135deg, #0d47a1 0%, #01579b 100%);
 }
 
-:global(.mud-theme-dark) .column-row:hover {
+.mud-theme-dark .column-row:hover {
     background-color: rgba(255, 255, 255, 0.08);
 }
 
